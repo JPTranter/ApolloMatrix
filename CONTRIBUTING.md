@@ -10,9 +10,10 @@ cd ApolloMatrix          # every path in the docs is relative to the repo root
 test/run_tests.sh        # must be green
 ```
 
-That runs the whole gate: builds the harness, checks `test/matrix_logic.h` still mirrors
-the display lambda in `ApolloMatrix.yaml`, checks the glyph fixtures, checks the docs'
-links and images, runs 20 scenario assertions, and renders both image styles.
+That runs the whole gate: scans for secrets and personal data (tracked *and* untracked
+files, including image metadata), builds the harness, checks `test/matrix_logic.h` still
+mirrors the display lambda in `ApolloMatrix.yaml`, checks the glyph fixtures, checks the
+docs' links and images, runs 20 scenario assertions, and renders both image styles.
 
 - **Touching `ApolloMatrix.yaml`?** Mirror the change in `test/matrix_logic.h`. The sync
   check tells you if you missed it.

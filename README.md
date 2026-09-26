@@ -196,17 +196,23 @@ would show — no ESP-IDF, no flashing. Run the commands in this repo's docs fro
 test/run_tests.sh
 ```
 
-Four steps:
+Five steps:
 
-1. **Build** `test/main.cpp` (CMake + Ninja, host g++) with the ported display
+1. **Privacy check** (`test/check_privacy.py`) — scans tracked **and** untracked
+   files for credential assignments, absolute home paths, real email/street/phone/
+   coordinate strings, and image metadata: EXIF, a GPS block, XMP, or a second JPEG
+   appended by a phone's MPF frame (which can carry its own location tags). It runs
+   first because it is the only check that sees files that are not committed yet —
+   a photo dropped into `docs/images/` is scanned before it is ever staged.
+2. **Build** `test/main.cpp` (CMake + Ninja, host g++) with the ported display
    logic in `test/matrix_logic.h`.
-2. **Logic sync check** (`test/check_sync.py`) — asserts the load-bearing
+3. **Logic sync check** (`test/check_sync.py`) — asserts the load-bearing
    expressions (gating conditions, trend thresholds, text formats, layout anchors)
    still match between `ApolloMatrix.yaml` and `test/matrix_logic.h`.
-3. **Font fixtures check** (`test/export_font_metrics.py --check`) — asserts
+4. **Font fixtures check** (`test/export_font_metrics.py --check`) — asserts
    `test/fonts/metrics.json` still matches the YAML `font:` blocks (glyph set, size,
    bpp), so the render cannot silently keep using a stale font.
-4. **Run 20 scenarios** asserting the expected display/LED state, then rasterize
+5. **Run 20 scenarios** asserting the expected display/LED state, then rasterize
    each to PNG.
 
 Two styles are rendered for every scenario, into one directory (`test/output/images/`),
