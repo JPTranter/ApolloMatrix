@@ -281,8 +281,78 @@ phases now use the reachable set, with the baseline pinned at `millis = 10000`
 (`dx=+1`, `dy=+1`) — the worst realistic case for the right edge.
 
 **Bonus latent bug found the same way:** `-` (U+002D) is *not* in the Roboto glyph
-set (`glyphs: '0123456789.C°'`), while `%.1f` formats a minus for sub-zero
+set (`glyphs: '[PHONE].C°'`), while `%.1f` formats a minus for sub-zero
 temperatures. `Font::print()` draws an **unknown glyph as a filled rectangle**
 (width = `glyphs_[0].advance`, height = the font height), so a `-5.4°C` reading would
 put a solid block where the minus belongs. Fix by adding `-` to that font's glyphs.
 The small font already has `-`; only the large (temperature) font is missing it.
+
+## 18. Rendering text faithfully means driving ESPHome's own font generator (verified 2026-09-26)
+
+A desktop text stack is not the device's text stack. The first harness rendered with
+PIL/FreeType at PIL's own metrics and antialiasing, which produced a ~1 px position
+error and a false "clipped C" (lesson 17), and gave Silkscreen smoothing the panel
+never shows (lesson 19).
+
+The fix is not to reimplement better - it is to use ESPHome's own generator:
+`esphome/components/font/__init__.py` exposes `glyph_to_glyphinfo(glyph, face, size,
+bpp)` (FreeType → advance/offset_x/offset_y/width/height + `bpp`-bit packed coverage)
+and `pt_to_px()`, and the `Font(...)` constructor takes
+`(baseline=ascender, height=pt_to_px(size.height), descender, xheight, capheight,
+bpp)`. `test/export_font_metrics.py` drives exactly those functions and writes
+`test/fonts/metrics.json`, which `rasterize.py` then consumes - so the fixtures are
+the firmware's data, not a lookalike.
+
+Verification is byte-exact: `python test/export_font_metrics.py --verify <build>/src/main.cpp`
+parses the glyph table and `Font(...)` args out of a real build and compares every
+metric and bitmap. It reported all 45 glyphs identical, which is what makes the
+renders trustworthy.
+
+Rendering rules to mirror (all in `Display::get_text_bounds` / `Font::measure` /
+`Font::print`):
+
+- `width = total_advance - min_x`, `x_offset = min_x` (`min_x` = min of
+  `x + offset_x` over the glyphs)
+- `x1 = x - (width + x_offset)/2`, `y1 = y - height/2`
+- pen starts **at x1** (not x1 - min_x); ink at `(pen + offset_x, y1 + offset_y)`
+- coverage 0 → draw nothing; `== bpp_max` → the text colour; otherwise
+  `(uint8_t)(colour * coverage/bpp_max)` blended against `COLOR_OFF = (0,0,0)` — the
+  device's antialiasing, at its own bit depth
+- unknown codepoint → a filled rectangle `first_glyph.advance` wide and
+  `font.height` tall, in the text colour
+
+A `--check` mode compares the committed fixtures against the YAML `font:` blocks
+(glyph set, size, bpp) without needing FreeType, so `run_tests.sh` fails loudly if
+the glyphs change but the fixtures were not re-exported.
+
+## 19. Antialiasing is per-font and lives in the glyph bitmaps (verified 2026-09-26)
+
+`bpp:` sets the glyph coverage depth (2 bits = 4 levels). `Font::print()` unpacks
+each pixel and blends partial coverage:
+
+```cpp
+on = pixel / bpp_max;
+blended = (uint8_t)(colour * on + background * (1 - on));   // truncated
+```
+
+The lambda's `printf(x, y, font, colour, align, fmt, ...)` overload passes
+`background = COLOR_OFF`, and `COLOR_OFF` is `Color(0, 0, 0, 0)`
+(`display.h:300`). So a partial pixel is the text colour **dimmed by its coverage** -
+antialiasing against black, correct for a panel that clears to black each frame.
+
+Whether it does anything depends entirely on the generated bitmaps, and the two fonts
+here differ completely:
+
+| font | glyphs with partial pixels | inked pixels that are partial |
+|---|---|---|
+| Silkscreen 8 (the four small lines) | 0 / 32 | **0 %** (values are only 0 or 3) |
+| Roboto 14 (the temperature) | 13 / 13 | **44 %** (levels 1-2) |
+
+So the big temperature number is antialiased at 4 levels, and the small lines are
+hard-edged. That is expected: Silkscreen is a pixel font rendered at its native size,
+where FreeType's coverage lands on 0 % or 100 % anyway. Raising `bpp: 4` (16 levels)
+would sharpen only the Roboto text, at a flash cost.
+
+Consequence for tooling: never let a renderer smooth what the device does not.
+Rasterise from the coverage bitmaps (lesson 18) instead of a desktop text stack,
+which would smooth Silkscreen *and* apply finer shading than 4 levels to Roboto.

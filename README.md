@@ -107,29 +107,49 @@ would show — no ESP-IDF, no flashing.
 test/run_tests.sh
 ```
 
-Three steps:
+Four steps:
 
 1. **Build** `test/main.cpp` (CMake + Ninja, host g++) with the ported display
    logic in `test/matrix_logic.h`.
-2. **Sync check** (`test/check_sync.py`) — asserts the load-bearing expressions
-   (gating conditions, trend thresholds, text formats, layout anchors) still match
-   between `apollomatrix.yaml` and `test/matrix_logic.h`.
-3. **Run 19 scenarios** asserting the expected display/LED state, then rasterize
-   each to PNG (`test/rasterize.py`, PIL + the real fonts).
+2. **Logic sync check** (`test/check_sync.py`) — asserts the load-bearing
+   expressions (gating conditions, trend thresholds, text formats, layout anchors)
+   still match between `apollomatrix.yaml` and `test/matrix_logic.h`.
+3. **Font fixtures check** (`test/export_font_metrics.py --check`) — asserts
+   `test/fonts/metrics.json` still matches the YAML `font:` blocks (glyph set, size,
+   bpp), so the render cannot silently keep using a stale font.
+4. **Run 20 scenarios** asserting the expected display/LED state, then rasterize
+   each to PNG.
 
 Output: `test/output/png/<NN>_<scenario>.png` (8× zoom) and
 `test/output/png/_contact_sheet.png` (all scenarios in one grid).
 
-Coverage: window boundaries (07:30 / 08:00 / 21:59 / 22:00 / 22:30), lounge
-occupied vs empty, presence sensor with no state, manual override inside/outside
-the window and past the cutoff, the temperature colour ramp (1 °C / 6 °C / 32 °C),
+Coverage: window boundaries (07:30 / 08:00 / 21:59 / 22:00), lounge occupied vs
+empty, presence sensor with no state, manual override inside/outside the window and
+past the cutoff, the temperature colour ramp (1 / 6 / 32 °C), a sub-zero reading,
 trend up/down/flat, brightness 0.2 vs 1.0, and missing HA sensor data.
+
+### Rendering fidelity
+
+The PNGs are rendered from the device's own font data rather than an approximation.
+`test/fonts/metrics.json` is ESPHome's font output — FreeType advances/offsets plus
+`bpp`-bit coverage — produced by `test/export_font_metrics.py`, which drives
+ESPHome's own glyph generator. It is verified **byte-for-byte** against a real build:
+
+```bash
+python test/export_font_metrics.py --verify <build>/src/main.cpp
+```
+
+`rasterize.py` then applies the firmware's rendering rules: `x1 = x - (width +
+x_offset)/2`, `y1 = y - height/2` (CENTER centres vertically too), coverage 0 = not
+drawn, full = the text colour, partial = `colour × (coverage/3)` against black.
+That is the device's own 4-level antialiasing, so Silkscreen comes out hard-edged
+while the Roboto temperature is smooth — exactly as on the panel. An unknown
+codepoint draws `Font::print()`'s placeholder rectangle; the `temp_negative_box`
+scenario shows a `-5.4°C` reading doing it.
 
 **`test/matrix_logic.h` is a copy** of the YAML lambda — `apollomatrix.yaml` stays
 the source of truth for the device. Changes must be mirrored in both; the sync
-check catches most drift. Fonts are vendored in `test/fonts/` (see its NOTICE), and
-`rasterize.py` reproduces ESPHome's own text-bounds rules so positions and line
-widths are representative.
+check catches most drift. Fonts are vendored in `test/fonts/` (see its NOTICE).
 
 ## Known issues / TODO
 
