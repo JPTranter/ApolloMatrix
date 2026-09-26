@@ -47,7 +47,11 @@ jobs:
           cmake --version
 
       - name: Install Python deps
-        run: pip install pillow
+        run: |
+          # pillow: rasterize.py / check_privacy.py. numpy: the device-style
+          # renderer's LED/glow maths. Both are hard requirements of the harness —
+          # the device style was the first thing to notice numpy was missing.
+          pip install pillow numpy
 
       # One command: scans for secrets and personal data in tracked AND untracked
       # files (including image metadata), builds the harness, checks that

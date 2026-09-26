@@ -30,6 +30,19 @@ if [ -n "${NINJA:-}" ] && ! command -v "$NINJA" >/dev/null 2>&1; then
   exit 1
 fi
 
+# Name a missing Python package instead of dying with a traceback four steps later.
+# CI hit exactly that: pillow was installed, numpy was not, and the device-style
+# render - the last step of the run - was the first thing to notice.
+missing=""
+for mod in PIL numpy; do
+  "$PY" -c "import $mod" >/dev/null 2>&1 || missing="$missing $mod"
+done
+if [ -n "$missing" ]; then
+  echo "error: missing Python package(s):$missing"
+  echo "       install them with: $PY -m pip install pillow numpy"
+  exit 1
+fi
+
 rc_priv=0
 rc_sync=0
 rc_scen=0
