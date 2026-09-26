@@ -146,8 +146,9 @@ prefixed by style:
 - **device_** — an LED-panel look: round LEDs with a glow halo on a dark mask and
   faint unlit packages between them. Deliberately **uniform** — no per-LED brightness
   spread and no vignette, so every LED of the same colour renders identically.
-  Presentation only — the default `--exposure 2.2` mimics a dark-room photo and
-  `--exposure 1.0` gives the true brightness. Use this to judge how it will *appear*.
+  Presentation only — `--exposure` is a gain on the LEDs' emitted light (it does not
+  touch the panel background), default `2.2` for a dark-room-photo look and `1.0` for
+  the true brightness. Use this to judge how it will *appear*.
 
 Each style also gets a `<style>_contact_sheet.png`. Knobs:
 `rasterize.py [traces_dir] [out_dir] --style crisp|device --cell 16 --exposure 2.2`.

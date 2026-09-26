@@ -447,3 +447,39 @@ What matters more than the drift, in order:
 Caveat: this is a duty-cycle / spatial-spread analysis of the pattern, not a lifetime
 prediction — it says nothing about absolute LED hours, only about how evenly the
 wear is distributed.
+
+## 22. Two render styles with two different jobs (verified 2026-09-26)
+
+`rasterize.py` produces two views of the same frame, into one directory
+(`test/output/images/`, filenames prefixed by style):
+
+| style | what it is | use it for |
+|---|---|---|
+| `crisp_*` | the faithful 64×64 pixel grid, 8× zoom | layout, margins, clipping, ink — the only style that represents what the panel receives |
+| `device_*` | a presentation render of the physical panel: round dies with a glow halo on a dark mask, faint unlit packages between them | judging how the frame *appears* |
+
+The device style is **not** evidence about the device: it carries a camera-like
+`--exposure` gain and LED styling. Never read brightness levels or geometry off it —
+lesson 19's wrong antialiasing conclusion came from reasoning about the data, and was
+corrected by measuring a photo, never by looking at a render.
+
+Nor is either style an automated test. What actually gates is: the 20 scenario
+assertions in `render_scenarios` (display/LED state), `check_sync.py` (harness logic
+vs the YAML) and `export_font_metrics.py --check` (font fixtures). The images are for
+human review; there is no committed pixel-diff baseline.
+
+**Apply gain to emitted light only.** The first device-look multiplied the whole image
+by `exposure` (2.2), which lifted the LED mask and the unlit packages too: the mask
+rendered at ~24/255 and the panel read as a grey wash instead of a black board. The
+fix is to scale the lit-LED term alone and keep the mask and off-dots absolute
+(`PANEL_BG = (6, 6, 8)`, `UNLIT_LEVEL = 7`). The same applies to any such gain in a
+renderer.
+
+Design decisions taken — keep them unless asked to change:
+
+- **Uniform panel.** No per-LED brightness spread and no vignette: every LED of the
+  same colour renders identically. Both were added for realism, then removed on
+  request; the off-pixel grey was subsequently halved for contrast.
+- **One output directory.** Renders go to `test/output/images/` (git-ignored) prefixed
+  `crisp_`/`device_`; the README's copies live in `docs/images/` and are refreshed by
+  `test/make_readme_images.py` after `test/run_tests.sh`.
