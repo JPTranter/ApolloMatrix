@@ -203,7 +203,7 @@ light:
     name: "Onboard Status LED"
     pin: GPIO3
     num_leds: 1
-    rgb_order: GRB
+    channel_colors: GRB
     chipset: WS2812
     restore_mode: ALWAYS_OFF
     effects:
