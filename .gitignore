@@ -18,6 +18,11 @@ __pycache__/
 .venv/
 venv/
 
+# Host test harness: build artefacts + rendered images (regenerate with
+# test/run_tests.sh); the vendored fonts in test/fonts/ ARE tracked.
+test/build/
+test/output/
+
 # OS noise
 .DS_Store
 Thumbs.db

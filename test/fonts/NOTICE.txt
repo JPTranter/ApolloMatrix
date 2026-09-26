@@ -1,0 +1,20 @@
+Fonts vendored for the host render harness
+==========================================
+
+These are the fonts the device itself uses (see `font:` in apollomatrix.yaml,
+declared as `gfonts://Silkscreen` and `gfonts://Roboto`). They are copied here so
+`rasterize.py` can render text with the real typefaces, offline and reproducibly.
+
+Silkscreen-Regular.ttf
+  Silkscreen, by Jason Kottke.
+  License: SIL Open Font License 1.1 (OFL-1.1).
+  Source:  https://fonts.google.com/specimen/Silkscreen
+
+Roboto-Regular.ttf
+  Roboto (Regular, 400), by Christian Robertson / Google.
+  License: Apache License 2.0.
+  Source:  https://fonts.google.com/specimen/Roboto
+
+Both licenses permit redistribution. ESPHome downloads the same files at build
+time via `gfonts://`; to refresh them, run `esphome config apollomatrix.yaml`
+locally and copy the TTFs out of `<config>/.esphome/font/`.
