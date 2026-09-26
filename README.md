@@ -188,7 +188,8 @@ from a different host.
 ## Testing (host render harness)
 
 `test/` compiles the display logic on the PC and renders what the 64×64 panel
-would show — no ESP-IDF, no flashing.
+would show — no ESP-IDF, no flashing. Run the commands in this repo's docs from the
+**repository root**; every path is relative to it.
 
 ```bash
 test/run_tests.sh

@@ -1,7 +1,8 @@
 # ApolloMatrix — Lessons Learnt
 
 Hardware: **Apollo Automation M-1**, 64×64 HUB75 panel, ESP32-S3 (DevKitC-1), ESP-IDF.
-Repo: `C:/Users/jptra/Projects/ApolloMatrix`.
+Repo: **this repository**. Every path, command and file reference below is relative to
+its root — `cd` into the repo folder first and run things from there.
 
 Convention (inherited from eClock/ChromaWOTD): entries marked **verified <date>**
 were confirmed against this repo, the generated build output, or live Home
@@ -90,7 +91,8 @@ firmware has actually been produced.
 
 ## 6. Windows 260-character path limit breaks the ESP-IDF toolchain (observed, not exercised)
 
-ESPHome warned that `C:\Users\jptra\AppData\Local\esphome\Cache\idf` (46 chars)
+ESPHome warned that the ESP-IDF tools directory under
+`%LOCALAPPDATA%\esphome\Cache\idf` (46 characters on the machine this was found on)
 projects to ~291 chars with the compiler's internal relative paths, over the 260
 limit, producing "cryptic build failures such as `fatal error: bits/c++config.h: No
 such file or directory`". Fixes if a local build is ever wanted:
