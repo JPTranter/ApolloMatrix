@@ -2,9 +2,65 @@
 
 ESPHome configuration for an **Apollo Automation M-1** 64×64 HUB75 LED matrix
 panel driven by an **ESP32-S3** (DevKitC-1). The panel shows the date/time and
-live Bureau-of-Meteorology weather for **Scoresby** (Melbourne), colour-coded by
-temperature, with a 30-minute trend arrow. It only lights up while someone is in
-the lounge room, within an 08:00–22:00 window, and can be forced on from Home Assistant.
+live weather, colour-coded by temperature, with a 30-minute trend arrow. It only
+lights up within an 08:00–22:00 window while its room is occupied — or on the time
+window alone if you have no presence sensor — and can be forced on from Home
+Assistant.
+
+Weather comes from **Home Assistant entities** (the default config points at a
+Bureau-of-Meteorology station in Scoresby, Melbourne) — see
+[Configuration](#configuration) to swap in your own source and location.
+
+## Configuration
+
+Everything you need to change is in the **`substitutions:`** block at the top of
+`apollomatrix.yaml`. The rest of the file is the engine and reads it via `${...}`.
+
+It is deliberately a **single self-contained file** — the only YAML you copy to the
+ESPHome addon. Optional features (like time-based-only operation) appear as commented
+alternative blocks in the same file rather than extra files to copy.
+
+| Substitution | Default | What it does |
+|---|---|---|
+| `weather_temp` | `sensor.scoresby_temp` | Outside temperature — **in °C** |
+| `weather_feels_like` | `sensor.scoresby_temp_feels_like` | Apparent temperature (°C) |
+| `weather_humidity` | `sensor.scoresby_humidity` | Relative humidity (%) |
+| `weather_dew_point` | `sensor.scoresby_dew_point` | Dew point (°C) |
+| `weather_condition` | `sensor.scoresby_cloud_situation` | Optional — only feeds an unused path; delete the `weather_condition` text_sensor and the `show_weather_timer` script if you have no such entity |
+| `presence_sensor` | `binary_sensor.sonoff_snzb_06p24` | Occupancy sensor for the panel's room. Optional — see *time-based only* below |
+| `timezone` | `Australia/Melbourne` | Drives the clock *and* the visibility window |
+| `start_hour` | `8` | Window opens (inclusive) |
+| `off_hour` | `22` | Window closes (exclusive), and the manual override resets |
+| `device_name` | `apollomatrix` | Hostname — lowercase letters, digits and dashes only |
+| `device_friendly_name` | `ApolloMatrix` | The name Home Assistant shows |
+| `panel_width` / `panel_height` | `64` / `64` | Panel size in pixels |
+| `shift_driver` | `FM6126A` | Panel shift-register chip |
+| `bit_depth` | `10` | Colour bit depth |
+| `gate_pin`, `status_led_pin`, `r1_pin` … `oe_pin` | see file | Wiring — change only if you rewired it |
+
+Any Home Assistant weather source works (BOM, Met.no, Weather Underground, your own
+station) — it just has to expose those four quantities **in °C**. The colour ramp
+(−2 … 30 °C), the trend threshold (±0.1 °C) and the formats are all Celsius: if your
+entities report °F, add a `template` sensor converting to °C and point the
+substitution at that, rather than re-scaling the ramp in three places.
+
+Two things to know before you change any *text*:
+
+- **Every character you display must be in that font's `glyphs:` list**, and glyph
+  bitmaps are baked at build time. A missing character renders as a filled rectangle
+  (that is how the old `-` bug appeared). Change a unit letter or a label and you must
+  extend `glyphs:` and re-run `python test/export_font_metrics.py`.
+- **Longer text may not fit.** `DEWPT 11.2°C` is 62 of the 64 px. Run
+  `test/run_tests.sh` and look at the crisp renders — the harness doubles as a fit
+  check.
+
+### Time-based only (no presence sensor)
+
+In `apollomatrix.yaml`, delete the active **Option A** block under
+`# ── Presence gate ──` and uncomment **Option B** immediately below it. Option B is a
+`template` sensor that reports permanently occupied, so the visibility window alone
+decides when the panel is lit and you need no presence entity at all. Everything else
+is unchanged — including the manual override still respecting the cutoff.
 
 ## Hardware
 
@@ -27,10 +83,11 @@ HUB75 pins: `R1=42 G1=41 B1=40 R2=38 G2=39 B2=37 A=45 B=36 C=48 D=35 E=21 CLK=2 
 
 ### Visibility window
 
-Shown when the lounge is occupied **and** the time is within the window:
+Shown when the room is occupied **and** the time is within the window:
 
-- hour ≥ 08:00 and < 22:00 (`off_hour_cutoff`), and
-- `binary_sensor.sonoff_snzb_06p24` reports presence (someone in the lounge)
+- hour ≥ `${start_hour}` (08:00) and < `${off_hour}` (22:00), and
+- `${presence_sensor}` reports presence — with `presence/none.yaml` this is always
+  true, giving a time-only schedule
 
 or when **manual override** is on and hour < 22:00 (overrides both the presence
 gate and the 08:00 start, but still blanks at the cutoff).
@@ -44,11 +101,11 @@ Snapshots from the host harness. To refresh them: `test/run_tests.sh` then
 
 | Render | State |
 |---|---|
-| ![in window, lounge occupied](docs/images/device-normal.png) | **In window, lounge occupied** — the everyday frame at brightness 0.2 |
+| ![in window, room occupied](docs/images/device-normal.png) | **In window, room occupied** — the everyday frame at brightness 0.2 |
 | ![brightness 1.0](docs/images/device-full-brightness.png) | **Brightness 1.0** — the same frame with `number.apollomatrix_matrix_brightness` at full; every colour is scaled by it |
 | ![trend arrow](docs/images/device-trend-up.png) | **Trend arrow** — temperature above its 30-minute anchor (▲ red; below the anchor, ▼ blue) |
 | ![32 °C](docs/images/device-temp-hot.png) | **Colour ramp** — 32 °C, the red end. The ramp runs white → blue → cyan → green → orange → red across −2 °C … 30 °C |
-| ![panel blanked](docs/images/device-panel-off.png) | **Blanked** — outside 08:00–22:00, lounge empty, or the presence sensor has no state: the panel clears and the status LED goes out |
+| ![panel blanked](docs/images/device-panel-off.png) | **Blanked** — outside 08:00–22:00, room empty, or the presence sensor has no state: the panel clears and the status LED goes out |
 | ![crisp pixel grid](docs/images/crisp-normal.png) | **The faithful view** — the same everyday frame as the 64×64 grid the panel actually receives, with no glow or LED styling |
 
 The first five are the `device` style — a presentation render of how the panel
@@ -62,7 +119,7 @@ judge layout, margins and clipping.
 | `number.apollomatrix_matrix_brightness` | number | Matrix brightness 0.1–1.0 (restored) |
 | `switch.apollomatrix_matrix_toggle` | switch | Manual override — force the display on |
 | `light.apollomatrix_onboard_status_led` | light | Onboard WS2812 status LED |
-| `binary_sensor.sonoff_snzb_06p24` | binary_sensor | Lounge presence gate (from HA) |
+| `binary_sensor.sonoff_snzb_06p24` | binary_sensor | Room presence gate (from HA) |
 
 There is **no** `update.apollomatrix_firmware` entity and no `update:` platform
 in the config — OTA updates are triggered from the ESPHome dashboard, not HA.
@@ -85,16 +142,18 @@ actually force the display on (dead code; see Known issues).
 Firmware is built and pushed from the **ESPHome addon on the Home Assistant
 server**, not from this repo's machine.
 
-1. Copy `apollomatrix.yaml` from this repo into the addon's config dir on the HA
-   host, e.g. `/config/esphome/apollomatrix.yaml`. The addon already has
-   `secrets.yaml` with the WiFi credentials (`!secret wifi_ssid` /
-   `!secret wifi_password`); this repo's `secrets.yaml` is deliberately absent
-   (git-ignored).
-   ⚠️ Copy the file from disk — don't paste it through chat: runs of 10+ digits
-   get redacted to `[PHONE]`, which corrupts the font `glyphs` lines.
-2. In the ESPHome dashboard: select **apollomatrix** → ⋮ → **Install** →
-   **Wirelessly** (OTA). The addon compiles (fetches the two Google fonts,
-   resolves `esp-hub75`) and flashes over Wi-Fi.
+1. Edit the `substitutions:` block at the top of `apollomatrix.yaml` — your weather
+   entities, presence entity, timezone and window (see
+   [Configuration](#configuration)).
+2. Copy `apollomatrix.yaml` into the addon's config dir on the HA host, e.g.
+   `/config/esphome/apollomatrix.yaml`. The addon already has `secrets.yaml` with the
+   WiFi credentials (`!secret wifi_ssid` / `!secret wifi_password`); this repo's
+   `secrets.yaml` is deliberately absent (git-ignored).
+   ⚠️ Copy the file from disk — don't paste it through chat: runs of 10+ digits get
+   redacted to `[PHONE]`, which corrupts the font `glyphs` lines.
+3. In the ESPHome dashboard: select **apollomatrix** → ⋮ → **Install** →
+   **Wirelessly** (OTA). The addon compiles (fetches the two Google fonts, resolves
+   `esp-hub75`) and flashes over Wi-Fi.
 
 `cp secrets.yaml.example secrets.yaml` is only needed if you build with the CLI
 from a different host.
@@ -153,7 +212,7 @@ prefixed by style:
 Each style also gets a `<style>_contact_sheet.png`. Knobs:
 `rasterize.py [traces_dir] [out_dir] --style crisp|device --cell 16 --exposure 2.2`.
 
-Coverage: window boundaries (07:30 / 08:00 / 21:59 / 22:00), lounge occupied vs
+Coverage: window boundaries (07:30 / 08:00 / 21:59 / 22:00), room occupied vs
 empty, presence sensor with no state, manual override inside/outside the window and
 past the cutoff, the temperature colour ramp (1 / 6 / 32 °C), a sub-zero reading,
 trend up/down/flat, brightness 0.2 vs 1.0, and missing HA sensor data.

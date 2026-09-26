@@ -39,14 +39,14 @@ def lambda_block(yaml_text: str) -> str:
 
 # (label, yaml token, harness token)
 CHECKS = [
-    ("window start/cutoff",
-     "now.hour>=8&&now.hour<off_h",
+    ("window is substitution-driven",
+     "now.hour>=${start_hour}&&now.hour<off_h",
      "in.hour>=8&&in.hour<off_h"),
     ("override respects cutoff",
      "id(manual_override)&&now.hour<off_h",
      "manual_override&&in.hour<off_h"),
     ("presence gate needs state",
-     "id(lounge_presence).has_state()&&id(lounge_presence).state",
+     "id(room_presence).has_state()&&id(room_presence).state",
      "in.presence_sensor_has_state&&in.presence_present"),
     ("date line anchor",
      "strftime(32,6",
@@ -84,10 +84,52 @@ CHECKS = [
 ]
 
 
+def parse_substitutions(yaml_text: str) -> dict:
+    """Top-level `substitutions:` block -> {name: value} (quotes and comments stripped)."""
+    m = re.search(r"^substitutions:\n(.*?)(?=^\S)", yaml_text, re.M | re.S)
+    if not m:
+        return {}
+    subs = {}
+    for line in m.group(1).splitlines():
+        line = line.split("#", 1)[0]          # drop trailing comments
+        mm = re.match(r"\s+([A-Za-z_]\w*):\s*(.*?)\s*$", line)
+        if mm and mm.group(2):
+            subs[mm.group(1)] = mm.group(2).strip().strip("'\"")
+    return subs
+
+
+def mirror_checks(subs: dict, harness_text: str, scenarios_text: str) -> list[str]:
+    """The harness mirrors the YAML's *defaults*; assert the numbers still agree.
+
+    Since the visibility window became substitution-driven, a string compare against
+    the harness literal is no longer meaningful - compare the values instead, so a
+    change to `start_hour`/`off_hour` in the config block cannot silently leave the
+    harness testing a different window.
+    """
+    problems = []
+
+    start = subs.get("start_hour")
+    m = re.search(r"in\.hour\s*>=\s*(\d+)", harness_text)
+    if not m:
+        problems.append("harness: no `in.hour >= N` to mirror start_hour")
+    elif start is not None and int(m.group(1)) != int(start):
+        problems.append(f"start_hour: YAML default {start} vs test/matrix_logic.h {m.group(1)}")
+
+    off = subs.get("off_hour")
+    m = re.search(r"in\.off_hour\s*=\s*(\d+)", scenarios_text)
+    if not m:
+        problems.append("scenarios: no `in.off_hour = N` to mirror off_hour")
+    elif off is not None and int(m.group(1)) != int(off):
+        problems.append(f"off_hour: YAML default {off} vs test/main.cpp {m.group(1)}")
+
+    return problems
+
+
 def main() -> int:
     root = Path(sys.argv[1] if len(sys.argv) > 1 else Path(__file__).resolve().parent.parent)
     yaml_text = (root / "apollomatrix.yaml").read_text(encoding="utf-8")
     harness_text = (root / "test" / "matrix_logic.h").read_text(encoding="utf-8")
+    scenarios_text = (root / "test" / "main.cpp").read_text(encoding="utf-8")
 
     hay_yaml = normalize(lambda_block(yaml_text))
     hay_harness = normalize(harness_text)
@@ -103,6 +145,11 @@ def main() -> int:
         elif h not in hay_harness:
             problems.append(f"{label}: {harness_token!r} not found in test/matrix_logic.h")
 
+    subs = parse_substitutions(yaml_text)
+    if not subs:
+        problems.append("no `substitutions:` block found in apollomatrix.yaml")
+    problems += mirror_checks(subs, harness_text, scenarios_text)
+
     if problems:
         print("LOGIC SYNC: DRIFT DETECTED")
         for p in problems:
@@ -111,8 +158,8 @@ def main() -> int:
         print("then re-run test/run_tests.sh.")
         return 1
 
-    print(f"logic sync: {len(CHECKS)} canonical expressions present in both "
-          f"apollomatrix.yaml and test/matrix_logic.h")
+    print(f"logic sync: {len(CHECKS)} canonical expressions present in both; "
+          f"{len(subs)} substitution(s) parsed and the window defaults mirror the harness")
     return 0
 
 

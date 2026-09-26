@@ -19,8 +19,8 @@ LED off. Current conditions:
 ```cpp
 int off_h = id(off_hour_cutoff);              // 22
 bool in_window = (now.hour >= 8 && now.hour < off_h);
-bool lounge_present = id(lounge_presence).has_state() && id(lounge_presence).state;
-bool auto_on = (in_window && lounge_present);
+bool room_present = id(room_presence).has_state() && id(room_presence).state;
+bool auto_on = (in_window && room_present);
 bool forced_on = (id(manual_override) && now.hour < off_h);
 if (now.is_valid() && (auto_on || forced_on)) { /* draw */ } else { /* blank + LED off */ }
 ```
@@ -122,10 +122,10 @@ never enter the repo.
 `.esphome/build/<name>/src/main.cpp` contains the translated C++, so it answers
 questions the YAML cannot:
 
-- `id(lounge_presence).has_state()` → `lounge_presence->has_state()`, confirming the
+- `id(room_presence).has_state()` → `room_presence->has_state()`, confirming the
   HA binary_sensor platform exposes both `has_state()` and `state`.
-- Whether a component becomes an HA entity: `App.register_binary_sensor(lounge_presence,
-  "lounge_presence", …, 16777216);  // internal` — flagged **internal**, so it never
+- Whether a component becomes an HA entity: `App.register_binary_sensor(room_presence,
+  "room_presence", …, 16777216);  // internal` — flagged **internal**, so it never
   appears in Home Assistant. Adding it therefore required **no HA change at all**;
   the HA-side entity is only the presence *source* (`binary_sensor.sonoff_snzb_06p24`).
 
@@ -156,7 +156,7 @@ server** (config dir `/config/esphome/`, which already holds the real `secrets.y
 
 ## 12. Editing the HA dashboard from an agent needs the WebSocket API (verified 2026-09-26)
 
-The lounge presence row was added to the dashboard's **Living Room** mushroom stack
+The presence row was added to the dashboard's **Living Room** mushroom stack
 via `{"type": "lovelace/config"}` / `lovelace/config/save` — REST has no endpoint for
 card config, and `save` takes the **entire** dashboard. Back up first, assert the exact
 target was found, and re-read after saving to verify. Full procedure lives in the
@@ -409,7 +409,7 @@ not against the source.
 > 2 px, temperature 23 px). The analysis below is kept because it quantifies what was
 > given up: with no drift every inked pixel is lit for 100 % of the display time, so
 > there is now no burn-in spreading at all and the remaining wear levers are
-> brightness (`bri = 0.2`) and the lounge-presence gate.
+> brightness (`bri = 0.2`) and the room-presence gate.
 
 The lambda used to shift the whole image by `dx = roundf(sin(phase)*1.5)`,
 `dy = roundf(cos(phase)*1.5)` over a 60 s phase cycle, which read as a gentle
@@ -440,7 +440,7 @@ What matters more than the drift, in order:
    LED aging is strongly superlinear in current (~I^1.5–2). This is a far bigger lever
    than any pixel shift, and it is already in place.
 2. **On-time.** Total duty-hours is the other half of the aging equation; the
-   lounge-presence gate cuts the hours the panel is lit at all.
+   room-presence gate cuts the hours the panel is lit at all.
 3. **A wider drift, if the layout ever allows it.** ±4 px / 81 states drops the peak
    duty to ~22 % — but needs headroom the two long lines do not currently have.
 
@@ -483,3 +483,66 @@ Design decisions taken — keep them unless asked to change:
 - **One output directory.** Renders go to `test/output/images/` (git-ignored) prefixed
   `crisp_`/`device_`; the README's copies live in `docs/images/` and are refreshed by
   `test/make_readme_images.py` after `test/run_tests.sh`.
+
+## 23. The configuration surface is one substitutions block (verified 2026-09-26)
+
+Everything a user must change now lives in a single documented `substitutions:` block
+at the top of `apollomatrix.yaml` (30 keys): the four HA weather entities, the optional
+condition entity, the presence entity, timezone, the window (`start_hour`/`off_hour`),
+device name, panel geometry, shift driver, bit depth and all 16 pins. The rest of the
+file is the engine and reads them as `${...}`.
+
+Decisions to keep:
+
+- **Home Assistant only, by choice.** The project takes its weather from HA entities
+  rather than fetching an API itself: the user points four substitutions at their own
+  source (BOM, Met.no, WU, their own station) and nothing else changes. No backend
+  packages, no HTTP/JSON on the device.
+- **°C is canonical.** The ramp (−2…30), the trend threshold (±0.1) and the formats
+  are Celsius. A °F user converts with a `template` sensor at the *input*; re-scaling
+  the ramp in three places is not offered.
+- **`off_hour` now drives two things.** The window's upper bound *and* the
+  `time.on_time` that resets `manual_override` were both hardcoded 22 independently, so
+  a user changing one would have silently desynced the override reset. Both read
+  `${off_hour}` now.
+- **The window start had to leave the lambda.** `now.hour >= 8` was inline; it is now
+  `${start_hour}`. Substitutions resolve before parsing, so they work inside the lambda
+  text — verified with `esphome config` ("Configuration is valid!" once the local
+  `channel_colors` version skew was worked around in a scratch copy only).
+
+Consequences the guards had to absorb — both by design, both worth remembering:
+
+1. **`check_sync.py`'s window anchor had to change.** It asserted the literal
+   `now.hour>=8&&now.hour<off_h`; it now asserts the substituted form in the YAML and,
+   separately, compares the harness's mirrored defaults *numerically*
+   (`start_hour` ↔ `in.hour >= 8` in matrix_logic.h; `off_hour` ↔ `in.off_hour = 22` in
+   main.cpp). Without that the guard would either fail loudly on a valid config or —
+   worse — keep passing while the harness tested a different window. Verified by
+   temporarily setting `start_hour: "7"` → `start_hour: YAML default 7 vs
+   test/matrix_logic.h 8`.
+2. **Text substitutions are not free.** Glyph bitmaps are baked at build time, so
+   changing a unit letter or a label means extending `glyphs:` and re-running
+   `export_font_metrics.py` (the fixture check catches a mismatch). And the longest line
+   (`DEWPT 11.2°C`, 62 of 64 px) means a longer label clips — hence the README telling
+   users to run the harness as a fit check.
+
+Follow-up changes (same day), all user-requested:
+
+- **`lounge_presence` → `presence_sensor`, internal id → `room_presence`.** The panel can
+  live in any room, so naming it after one was wrong; the gate variable is
+  `room_present`. Wording was neutralised across the README, the harness and these
+  lessons.
+- **Presence is now optional — as a commented block in the SAME file.** The `binary_sensor:`
+  key carries Option A (the HA sensor, entity id from `${presence_sensor}`) with Option B
+  (an always-occupied `template` sensor, i.e. time-based only) directly below, commented.
+  A user with no sensor deletes A and uncomments B.
+  An `!include`-based variant using `presence/homeassistant.yaml` + `presence/none.yaml`
+  was tried first and **deliberately reverted**: it deployed fine (both modes validated,
+  and `${presence_sensor}` *did* resolve inside the included file) but it meant an extra
+  directory to copy to the ESPHome addon. Deployment simplicity — one self-contained YAML
+  — beat tidiness, so variants belong in the file as commented blocks, not as extra files.
+  The lambda is unchanged in both modes, so the harness needed no new scenarios.
+- **`device_friendly_name: ApolloMatrix`.** ESPHome's `name` must be a hostname
+  (lowercase letters/digits/dashes only), so `ApolloMatrix` is invalid there and goes in
+  `friendly_name` — which is what Home Assistant shows. The hostname stays
+  `apollomatrix`.

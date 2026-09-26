@@ -45,7 +45,7 @@ matrix::Inputs base() {
 
   in.manual_override = false;
   in.brightness = 0.2f;
-  in.off_hour = 22;
+  in.off_hour = 22;          // mirrors `off_hour` in apollomatrix.yaml (checked by check_sync.py)
 
   in.temp_valid = true;
   in.temp = 11.4f;
@@ -68,16 +68,16 @@ std::vector<Scenario> build_scenarios() {
     s.push_back(Scenario{name, desc, in, active, led});
   };
 
-  // ---- the lounge-presence gate -------------------------------------------
+  // ---- the room-presence gate ---------------------------------------------
   {
     auto in = base();
-    add("window_occupied_10am", "In window (08:00-22:00) and lounge occupied -> shown", in,
+    add("window_occupied_10am", "In window (08:00-22:00) and room occupied -> shown", in,
         true, matrix::LedState::On);
   }
   {
     auto in = base();
     in.hour = 14; in.presence_present = false;
-    add("window_vacant_1400", "In window but lounge empty -> blank", in, false,
+    add("window_vacant_1400", "In window but room empty -> blank", in, false,
         matrix::LedState::Off);
   }
   {

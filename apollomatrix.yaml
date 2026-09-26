@@ -1,5 +1,65 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# CONFIGURATION — everything you need to change lives in this block.
+# The rest of the file is the display engine; it reads these values via ${...}.
+# ─────────────────────────────────────────────────────────────────────────────
+substitutions:
+  # ── Your Home Assistant weather entities (required) ──────────────────────────
+  # Any source works (BOM, Met.no, Weather Underground, your own station) — the
+  # values must be in °C, because the colour ramp and the trend maths are Celsius.
+  weather_temp: sensor.scoresby_temp
+  weather_feels_like: sensor.scoresby_temp_feels_like
+  weather_humidity: sensor.scoresby_humidity
+  weather_dew_point: sensor.scoresby_dew_point
+  # Optional. The firmware currently feeds this only to an unused path, so either
+  # point it at something or delete the `weather_condition` text_sensor and the
+  # `show_weather_timer` script (see Known issues in the README).
+  weather_condition: sensor.scoresby_cloud_situation
+
+  # ── Your room's presence sensor (optional) ──────────────────────────────────
+  # The panel only lights while this reports occupied. No sensor? See the
+  # "Presence gate" block further down — swap Option A for Option B.
+  presence_sensor: binary_sensor.sonoff_snzb_06p24
+
+  # ── Your location (required) ────────────────────────────────────────────────
+  # Drives the clock and the visibility window below.
+  timezone: Australia/Melbourne
+
+  # ── Behaviour ───────────────────────────────────────────────────────────────
+  # Visibility window in hours: start is inclusive, off is exclusive. At `off`
+  # the panel blanks AND the manual override is reset.
+  start_hour: "8"
+  off_hour: "22"
+
+  # Name the device gets in Home Assistant. `device_name` is the hostname, so it must
+  # be lowercase letters/digits/dashes only; `device_friendly_name` is what you see.
+  device_name: apollomatrix
+  device_friendly_name: ApolloMatrix
+
+  # ── Hardware — change only if you rewired the panel ─────────────────────────
+  panel_width: "64"
+  panel_height: "64"
+  shift_driver: FM6126A
+  bit_depth: "10"
+  gate_pin: GPIO7          # onboard power gate for the panel
+  status_led_pin: GPIO3    # WS2812
+  r1_pin: GPIO42
+  g1_pin: GPIO41
+  b1_pin: GPIO40
+  r2_pin: GPIO38
+  g2_pin: GPIO39
+  b2_pin: GPIO37
+  a_pin: GPIO45
+  b_pin: GPIO36
+  c_pin: GPIO48
+  d_pin: GPIO35
+  e_pin: GPIO21
+  clk_pin: GPIO2
+  lat_pin: GPIO47
+  oe_pin: GPIO14
+
 esphome:
-  name: apollomatrix
+  name: ${device_name}
+  friendly_name: ${device_friendly_name}
   on_boot:
     priority: -100
     then:
@@ -43,27 +103,37 @@ wifi:
 
 output:
   - platform: gpio
-    pin: GPIO7
+    pin: ${gate_pin}
     id: onboard_power_gate
 
+# ── Presence gate ─────────────────────────────────────────────────────────────
+# Option A (active): the panel only lights while your sensor reports occupied.
 binary_sensor:
   - platform: homeassistant
-    id: lounge_presence
-    entity_id: binary_sensor.sonoff_snzb_06p24
+    id: room_presence
+    entity_id: ${presence_sensor}
+
+# Option B — no presence sensor? Delete the block above and uncomment this one:
+# the sensor then reports permanently occupied, so the visibility window alone
+# decides when the panel is lit (time-based only).
+# binary_sensor:
+#   - platform: template
+#     id: room_presence
+#     lambda: "return true;"
 
 sensor:
   - platform: homeassistant
     id: current_temp
-    entity_id: sensor.scoresby_temp
+    entity_id: ${weather_temp}
   - platform: homeassistant
     id: current_dew_point
-    entity_id: sensor.scoresby_dew_point
+    entity_id: ${weather_dew_point}
   - platform: homeassistant
     id: current_humidity
-    entity_id: sensor.scoresby_humidity
+    entity_id: ${weather_humidity}
   - platform: homeassistant
     id: current_feels_like
-    entity_id: sensor.scoresby_temp_feels_like
+    entity_id: ${weather_feels_like}
 
 globals:
   - id: display_active
@@ -91,7 +161,7 @@ globals:
     initial_value: 'false'
   - id: off_hour_cutoff
     type: int
-    initial_value: '22'
+    initial_value: '${off_hour}'
 
 number:
   - platform: template
@@ -158,7 +228,7 @@ script:
 text_sensor:
   - platform: homeassistant
     id: weather_condition
-    entity_id: sensor.scoresby_cloud_situation
+    entity_id: ${weather_condition}
     on_value:
       then:
         - if:
@@ -174,11 +244,11 @@ text_sensor:
 time:
   - platform: homeassistant
     id: ha_time
-    timezone: "Australia/Melbourne"
+    timezone: "${timezone}"
     on_time:
       - seconds: 0
         minutes: 0
-        hours: 22
+        hours: ${off_hour}
         then:
           - globals.set:
               id: manual_override
@@ -201,7 +271,7 @@ light:
   - platform: esp32_rmt_led_strip
     id: status_led
     name: "Onboard Status LED"
-    pin: GPIO3
+    pin: ${status_led_pin}
     num_leds: 1
     channel_colors: GRB
     chipset: WS2812
@@ -217,11 +287,11 @@ light:
 display:
   - platform: hub75
     id: my_display
-    panel_width: 64
-    panel_height: 64
-    shift_driver: FM6126A
+    panel_width: ${panel_width}
+    panel_height: ${panel_height}
+    shift_driver: ${shift_driver}
     scan_wiring: STANDARD_TWO_SCAN
-    bit_depth: 10
+    bit_depth: ${bit_depth}
     clock_speed: 8MHZ
     clock_phase: true
     latch_blanking: 1
@@ -229,29 +299,29 @@ display:
     double_buffer: True
     brightness: 1
 
-    r1_pin: GPIO42
-    g1_pin: GPIO41
-    b1_pin: GPIO40
-    r2_pin: GPIO38
-    g2_pin: GPIO39
-    b2_pin: GPIO37
-    a_pin: GPIO45
-    b_pin: GPIO36
-    c_pin: GPIO48
-    d_pin: GPIO35
-    e_pin: GPIO21
-    clk_pin: GPIO2
-    lat_pin: GPIO47
-    oe_pin: GPIO14
+    r1_pin: ${r1_pin}
+    g1_pin: ${g1_pin}
+    b1_pin: ${b1_pin}
+    r2_pin: ${r2_pin}
+    g2_pin: ${g2_pin}
+    b2_pin: ${b2_pin}
+    a_pin: ${a_pin}
+    b_pin: ${b_pin}
+    c_pin: ${c_pin}
+    d_pin: ${d_pin}
+    e_pin: ${e_pin}
+    clk_pin: ${clk_pin}
+    lat_pin: ${lat_pin}
+    oe_pin: ${oe_pin}
 
     lambda: |-
       auto now = id(ha_time).now();
       float bri = id(matrix_brightness).state;
       int off_h = id(off_hour_cutoff);
 
-      bool in_window = (now.hour >= 8 && now.hour < off_h);
-      bool lounge_present = id(lounge_presence).has_state() && id(lounge_presence).state;
-      bool auto_on = (in_window && lounge_present);
+      bool in_window = (now.hour >= ${start_hour} && now.hour < off_h);
+      bool room_present = id(room_presence).has_state() && id(room_presence).state;
+      bool auto_on = (in_window && room_present);
       bool forced_on = (id(manual_override) && now.hour < off_h);
 
       if (now.is_valid() && (auto_on || forced_on)) {

@@ -47,7 +47,7 @@ struct Inputs {
   int day;
   int month;
 
-  // id(lounge_presence): the lambda tests has_state() && state
+  // id(room_presence): the lambda tests has_state() && state
   bool presence_sensor_has_state;
   bool presence_present;
 
@@ -112,9 +112,10 @@ Result render(Canvas &it, const Inputs &in) {
   const float bri = in.brightness;
   const int off_h = in.off_hour;
 
+  // the 8 mirrors `start_hour` in apollomatrix.yaml; check_sync.py asserts they agree
   const bool in_window = (in.hour >= 8 && in.hour < off_h);
-  const bool lounge_present = in.presence_sensor_has_state && in.presence_present;
-  const bool auto_on = (in_window && lounge_present);
+  const bool room_present = in.presence_sensor_has_state && in.presence_present;
+  const bool auto_on = (in_window && room_present);
   const bool forced_on = (in.manual_override && in.hour < off_h);
 
   char buf[64];
