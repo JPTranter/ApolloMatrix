@@ -1,0 +1,77 @@
+name: CI
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+jobs:
+  # Belt-and-braces secret scan. The pre-commit hook only sees staged content;
+  # this sees ALL history on every push.
+  secrets:
+    name: Secret scan (gitleaks)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0            # full history, so the scan sees every commit
+      - name: Install gitleaks
+        run: |
+          # Pinned to the same version as the pre-commit hook, so a local pass
+          # and a CI pass mean the same thing.
+          curl -sSfL "https://github.com/gitleaks/gitleaks/releases/download/v8.30.1/gitleaks_8.30.1_linux_x64.tar.gz" \
+            | tar -xz -C /usr/local/bin gitleaks
+      - name: Run gitleaks (all history)
+        run: gitleaks detect --source . --config .gitleaks.toml --redact --exit-code 1
+
+  harness:
+    name: Host harness
+    runs-on: ubuntu-latest
+    env:
+      # The harness scripts honour PYTHON/CMAKE/NINJA; `python` is not guaranteed
+      # on runners, and overriding it is better than relying on that.
+      PYTHON: python3
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install build tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake ninja-build g++
+          cmake --version
+
+      - name: Install Python deps
+        run: pip install pillow
+
+      # One command: builds the harness, checks that test/matrix_logic.h still
+      # mirrors the display lambda in ApolloMatrix.yaml, checks the glyph
+      # fixtures, checks the docs' links, runs the 20 scenarios and renders both
+      # image styles.
+      #
+      # The preview fonts are deliberately NOT in the repo, so the caption font
+      # falls back here: the run prints a note and still passes. That is the
+      # point — a clone with no fonts must still be able to verify itself.
+      - name: Run the harness
+        run: bash test/run_tests.sh
+
+  lint:
+    name: Python format
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Check Python formatting
+        run: |
+          # Pinned via PyPI rather than apt: a different formatter version
+          # reports violations in code that is already formatted, which makes
+          # the gate unreproducible.
+          pip install black==26.5.1
+          black --check --line-length 100 test/

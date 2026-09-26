@@ -46,11 +46,9 @@ TARGETS = {
 }
 
 DOWNLOADS = {
-    "Silkscreen-Regular.ttf":
-        "https://raw.githubusercontent.com/google/fonts/main/ofl/silkscreen/Silkscreen-Regular.ttf",
+    "Silkscreen-Regular.ttf": "https://raw.githubusercontent.com/google/fonts/main/ofl/silkscreen/Silkscreen-Regular.ttf",
     # upstream Roboto is a variable font (no static release in the Google Fonts repo)
-    "Roboto-Regular.ttf":
-        "https://raw.githubusercontent.com/google/fonts/main/ofl/roboto/Roboto%5Bwdth%2Cwght%5D.ttf",
+    "Roboto-Regular.ttf": "https://raw.githubusercontent.com/google/fonts/main/ofl/roboto/Roboto%5Bwdth%2Cwght%5D.ttf",
 }
 
 DUMMY_SECRETS = 'wifi_ssid: "DUMMY_SSID"\nwifi_password: "DUMMY_PASSWORD"\n'
@@ -97,12 +95,16 @@ def run_esphome() -> int:
         print(f"  running `esphome config` in {tmp} to fetch the fonts ...")
         proc = subprocess.run(
             [sys.executable, "-m", "esphome", "config", "ApolloMatrix.yaml"],
-            cwd=tmp, capture_output=True, text=True,
+            cwd=tmp,
+            capture_output=True,
+            text=True,
         )
         cache = tmp / ".esphome" / "font"
         if cache.is_dir() and any(cache.iterdir()):
-            print(f"  fonts downloaded (esphome exited {proc.returncode}; "
-                  f"a config error after the download is harmless)")
+            print(
+                f"  fonts downloaded (esphome exited {proc.returncode}; "
+                f"a config error after the download is harmless)"
+            )
             return copy_from_cache(cache)
         print("  esphome did not produce a font cache")
         if proc.returncode != 0:
@@ -137,10 +139,12 @@ def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--cache", help="an ESPHome font cache dir (.esphome/font)")
     ap.add_argument("--config-dir", help="an ESPHome config dir containing .esphome/font")
-    ap.add_argument("--via-esphome", action="store_true",
-                    help="run ESPHome locally to download the fonts first")
-    ap.add_argument("--download", action="store_true",
-                    help="fetch the upstream releases over HTTPS instead")
+    ap.add_argument(
+        "--via-esphome", action="store_true", help="run ESPHome locally to download the fonts first"
+    )
+    ap.add_argument(
+        "--download", action="store_true", help="fetch the upstream releases over HTTPS instead"
+    )
     args = ap.parse_args()
 
     DST.mkdir(parents=True, exist_ok=True)

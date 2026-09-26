@@ -42,8 +42,8 @@ from pathlib import Path
 from PIL import Image, ImageDraw, ImageFont
 
 PANEL_W, PANEL_H = 64, 64
-ZOOM = 8          # individual images
-SHEET_ZOOM = 4    # contact-sheet tiles
+ZOOM = 8  # individual images
+SHEET_ZOOM = 4  # contact-sheet tiles
 BG = (12, 12, 16)
 FG = (235, 235, 240)
 DIM = (140, 140, 150)
@@ -53,7 +53,7 @@ BAD = (235, 110, 110)
 # Trace font name (test/matrix_logic.h Font enum) -> metrics.json font id
 TRACE_FONT_ID = {"small": "weather_font", "large": "weather_font_l"}
 
-CAPTION_FONT = "Silkscreen-Regular.ttf"   # only used for the annotation chrome
+CAPTION_FONT = "Silkscreen-Regular.ttf"  # only used for the annotation chrome
 CAPTION_FONT_PATH: Path | None = None
 
 
@@ -64,7 +64,7 @@ class DeviceFont:
         self.id = spec["id"]
         self.bpp = spec["bpp"]
         self.bpp_max = (1 << self.bpp) - 1
-        self.height = spec["height"]        # Font(..., height, ...) = line height
+        self.height = spec["height"]  # Font(..., height, ...) = line height
         self.baseline = spec["baseline"]
         self.table = {int(k): v for k, v in spec["glyphs"].items()}
         first = self.table[min(self.table)]  # glyphs_[] is sorted by codepoint
@@ -85,7 +85,7 @@ class DeviceFont:
         for ch in text:
             gi = self.table.get(ord(ch))
             if gi is None:
-                x += self.first_advance    # unknown char: advance like glyphs_[0]
+                x += self.first_advance  # unknown char: advance like glyphs_[0]
                 continue
             if not has_char:
                 min_x = gi["offset_x"]
@@ -127,8 +127,15 @@ def put(img: Image.Image, x: int, y: int, color: tuple[int, int, int]) -> None:
         img.putpixel((x, y), color)
 
 
-def draw_device_text(img: Image.Image, font: DeviceFont, text: str, x: int, y: int,
-                     align: str, color: tuple[int, int, int]) -> None:
+def draw_device_text(
+    img: Image.Image,
+    font: DeviceFont,
+    text: str,
+    x: int,
+    y: int,
+    align: str,
+    color: tuple[int, int, int],
+) -> None:
     width, x_off = font.measure(text)
     if align == "center":
         x1 = x - (width + x_off) // 2
@@ -152,7 +159,7 @@ def draw_device_text(img: Image.Image, font: DeviceFont, text: str, x: int, y: i
         for gy in range(gi["height"]):
             for gx in range(gi["width"]):
                 if vals[gy * gi["width"] + gx] == 0:
-                    continue               # nothing drawn: background shows through
+                    continue  # nothing drawn: background shows through
                 # ESPHome's Font::print() computes a blended colour for partial
                 # coverage, but the panel does NOT show it: every inked pixel renders
                 # at the same brightness. Measured from a photo of the device - see
@@ -181,8 +188,9 @@ def render_panel(trace: dict, fonts: dict[str, DeviceFont]) -> Image.Image:
             draw.rectangle([0, 0, w - 1, h - 1], fill=color)
 
         elif kind == "line":
-            draw.line([int(op["x1"]), int(op["y1"]), int(op["x2"]), int(op["y2"])],
-                      fill=color, width=1)
+            draw.line(
+                [int(op["x1"]), int(op["y1"]), int(op["x2"]), int(op["y2"])], fill=color, width=1
+            )
 
         elif kind == "pixel":
             put(img, int(op["x"]), int(op["y"]), color)
@@ -191,8 +199,15 @@ def render_panel(trace: dict, fonts: dict[str, DeviceFont]) -> Image.Image:
             font = fonts.get(op.get("font", "small"))
             if font is None:
                 continue
-            draw_device_text(img, font, op.get("text", ""), int(op["x"]), int(op["y"]),
-                             op.get("align", "left"), color)
+            draw_device_text(
+                img,
+                font,
+                op.get("text", ""),
+                int(op["x"]),
+                int(op["y"]),
+                op.get("align", "left"),
+                color,
+            )
 
     return img
 
@@ -202,19 +217,20 @@ def render_panel(trace: dict, fonts: dict[str, DeviceFont]) -> Image.Image:
 # matrix appears in a photo: round LEDs on a dark mask, faint unlit packages, a
 # glow halo on lit ones. The crisp renderer above stays the faithful one - see
 # README "Rendering fidelity" and lesson 19.
-DEVICE_CELL = 16        # px per LED in the device-style output
-DEVICE_EXPOSURE = 2.2   # gain on the LEDs' emitted light (1.0 = the true brightness)
-PANEL_BG = (6, 6, 8)    # the mask between LEDs
-UNLIT_LEVEL = 7         # faint dots the unlit packages catch (lower = more contrast)
-CORE_RADIUS = 0.30      # LED die radius, in cell units
+DEVICE_CELL = 16  # px per LED in the device-style output
+DEVICE_EXPOSURE = 2.2  # gain on the LEDs' emitted light (1.0 = the true brightness)
+PANEL_BG = (6, 6, 8)  # the mask between LEDs
+UNLIT_LEVEL = 7  # faint dots the unlit packages catch (lower = more contrast)
+CORE_RADIUS = 0.30  # LED die radius, in cell units
 GLOW_SIGMA = 0.52
 GLOW_GAIN = 0.32
 # Deliberately uniform: no per-LED brightness spread and no vignette, so every LED
 # of the same colour renders identically.
 
 
-def device_look(panel: Image.Image, cell: int = DEVICE_CELL,
-                exposure: float = DEVICE_EXPOSURE) -> Image.Image:
+def device_look(
+    panel: Image.Image, cell: int = DEVICE_CELL, exposure: float = DEVICE_EXPOSURE
+) -> Image.Image:
     import numpy as np
 
     n = panel.width
@@ -222,13 +238,13 @@ def device_look(panel: Image.Image, cell: int = DEVICE_CELL,
     led_grid = np.asarray(panel.convert("RGB"), dtype=np.float32)
 
     yy, xx = np.mgrid[0:size, 0:size].astype(np.float32)
-    fx = (xx + 0.5) / cell - 0.5          # LED-centre coordinates (centre = integer)
+    fx = (xx + 0.5) / cell - 0.5  # LED-centre coordinates (centre = integer)
     fy = (yy + 0.5) / cell - 0.5
     cj = np.clip(np.floor(fx + 0.5).astype(np.int32), 0, n - 1)
     ci = np.clip(np.floor(fy + 0.5).astype(np.int32), 0, n - 1)
-    r = np.hypot(fx - cj, fy - ci)        # distance from the LED centre, in cell units
+    r = np.hypot(fx - cj, fy - ci)  # distance from the LED centre, in cell units
 
-    led = led_grid[ci, cj]                # the LED colour behind every pixel
+    led = led_grid[ci, cj]  # the LED colour behind every pixel
     lit = led.max(axis=2) > 0.5
 
     out = np.empty((size, size, 3), np.float32)
@@ -243,7 +259,7 @@ def device_look(panel: Image.Image, cell: int = DEVICE_CELL,
 
     # lit LEDs: a bright die with a soft halo
     core = np.clip(1.0 - (r / CORE_RADIUS) ** 4, 0.0, 1.0)
-    halo = np.exp(-(r / GLOW_SIGMA) ** 2)
+    halo = np.exp(-((r / GLOW_SIGMA) ** 2))
     out += lit[..., None] * led * exposure * (core + GLOW_GAIN * halo)[..., None]
 
     return Image.fromarray(np.clip(out, 0.0, 255.0).astype(np.uint8))
@@ -271,9 +287,9 @@ def with_caption(panel: Image.Image, trace: dict, zoom: int) -> Image.Image:
 
     pad, line_h = 8, 15
     lines = caption_lines(trace)
-    out = Image.new("RGB",
-                    (bordered.width + pad * 2, bordered.height + pad * 2 + line_h * len(lines)),
-                    BG)
+    out = Image.new(
+        "RGB", (bordered.width + pad * 2, bordered.height + pad * 2 + line_h * len(lines)), BG
+    )
     out.paste(bordered, (pad, pad))
 
     d = ImageDraw.Draw(out)
@@ -284,8 +300,9 @@ def with_caption(panel: Image.Image, trace: dict, zoom: int) -> Image.Image:
     return out
 
 
-def build_contact_sheet(items: list[tuple[dict, Image.Image]],
-                        tile_zoom: int = SHEET_ZOOM) -> Image.Image:
+def build_contact_sheet(
+    items: list[tuple[dict, Image.Image]], tile_zoom: int = SHEET_ZOOM
+) -> Image.Image:
     cols = 4
     rows = (len(items) + cols - 1) // cols
     if not items:
@@ -303,10 +320,18 @@ def build_contact_sheet(items: list[tuple[dict, Image.Image]],
         border = Image.new("RGB", (big.width + 2, big.height + 2), (60, 60, 70))
         border.paste(big, (1, 1))
         sheet.paste(border, (cx + 8, cy + 8))
-        d.text((cx + 8, cy + big.height + 12), trace.get("name", "?")[:40],
-               font=f, fill=OK if trace.get("pass") else BAD)
-        d.text((cx + 8, cy + big.height + 26),
-               "display on" if trace.get("display_active") else "display off", font=f, fill=DIM)
+        d.text(
+            (cx + 8, cy + big.height + 12),
+            trace.get("name", "?")[:40],
+            font=f,
+            fill=OK if trace.get("pass") else BAD,
+        )
+        d.text(
+            (cx + 8, cy + big.height + 26),
+            "display on" if trace.get("display_active") else "display off",
+            font=f,
+            fill=DIM,
+        )
     return sheet
 
 
@@ -316,12 +341,21 @@ def main() -> int:
     ap = argparse.ArgumentParser(description="Rasterize ApolloMatrix draw-op traces to PNG")
     ap.add_argument("traces_dir", nargs="?", default="output/traces")
     ap.add_argument("out_dir", nargs="?", default=None)
-    ap.add_argument("--style", choices=("crisp", "device"), default="crisp",
-                    help="crisp = faithful pixel grid (default); device = LED look")
-    ap.add_argument("--cell", type=int, default=DEVICE_CELL,
-                    help="pixels per LED for --style device")
-    ap.add_argument("--exposure", type=float, default=DEVICE_EXPOSURE,
-                    help="gain for --style device (1.0 = the true brightness)")
+    ap.add_argument(
+        "--style",
+        choices=("crisp", "device"),
+        default="crisp",
+        help="crisp = faithful pixel grid (default); device = LED look",
+    )
+    ap.add_argument(
+        "--cell", type=int, default=DEVICE_CELL, help="pixels per LED for --style device"
+    )
+    ap.add_argument(
+        "--exposure",
+        type=float,
+        default=DEVICE_EXPOSURE,
+        help="gain for --style device (1.0 = the true brightness)",
+    )
     args = ap.parse_args()
 
     traces_dir = Path(args.traces_dir)
@@ -339,9 +373,13 @@ def main() -> int:
         return 1
 
     fonts = load_device_fonts(fonts_dir)
-    print(f"style: {args.style}   device fonts: " + ", ".join(
-        f"{k}={v.id} (bpp {v.bpp}, height {v.height}, {len(v.table)} glyphs)"
-        for k, v in sorted(fonts.items())))
+    print(
+        f"style: {args.style}   device fonts: "
+        + ", ".join(
+            f"{k}={v.id} (bpp {v.bpp}, height {v.height}, {len(v.table)} glyphs)"
+            for k, v in sorted(fonts.items())
+        )
+    )
 
     device = args.style == "device"
     sheet_cell = max(4, args.cell // 3)
@@ -352,11 +390,16 @@ def main() -> int:
         panel = render_panel(trace, fonts)
         shown = device_look(panel, cell=args.cell, exposure=args.exposure) if device else panel
         with_caption(shown, trace, 1 if device else ZOOM).save(out_dir / f"{prefix}{path.stem}.png")
-        items.append((trace, device_look(panel, cell=sheet_cell, exposure=args.exposure)
-                      if device else panel))
+        items.append(
+            (
+                trace,
+                device_look(panel, cell=sheet_cell, exposure=args.exposure) if device else panel,
+            )
+        )
 
     build_contact_sheet(items, tile_zoom=1 if device else SHEET_ZOOM).save(
-        out_dir / f"{prefix}contact_sheet.png")
+        out_dir / f"{prefix}contact_sheet.png"
+    )
 
     failed = [t["name"] for t, _ in items if not t.get("pass")]
     print(f"rendered {len(items)} {args.style} image(s) -> {out_dir}")

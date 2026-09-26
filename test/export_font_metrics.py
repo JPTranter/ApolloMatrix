@@ -77,6 +77,7 @@ def export(fonts: list[dict]) -> dict:
             raise SystemExit(f"font file not found: {path}")
 
         import freetype
+
         face = freetype.Face(str(path))
         size, bpp = spec["size"], spec["bpp"]
 
@@ -102,22 +103,28 @@ def export(fonts: list[dict]) -> dict:
         gX = glyph_to_glyphinfo("X", face, size, bpp)
         capheight = gX.height if len(gX.bitmap_data) > 1 else 0
 
-        out["fonts"].append({
-            "id": spec["id"],
-            "trace_name": next((k for k, v in FONT_ID_FOR_TRACE_NAME.items() if v == spec["id"]), None),
-            "source": spec["file"],
-            "file": f"fonts/{path.name}",
-            "size": size,
-            "bpp": bpp,
-            "baseline": ascender,      # Font(...) arg 3
-            "height": font_height,     # Font(...) arg 4  (line height)
-            "descender": descender,
-            "xheight": xheight,
-            "capheight": capheight,
-            "glyphs": {str(k): v for k, v in sorted(infos.items())},
-        })
-        print(f"exported {spec['id']}: {len(infos)} glyphs, bpp={bpp}, size={size}, "
-              f"baseline={ascender}, height={font_height}")
+        out["fonts"].append(
+            {
+                "id": spec["id"],
+                "trace_name": next(
+                    (k for k, v in FONT_ID_FOR_TRACE_NAME.items() if v == spec["id"]), None
+                ),
+                "source": spec["file"],
+                "file": f"fonts/{path.name}",
+                "size": size,
+                "bpp": bpp,
+                "baseline": ascender,  # Font(...) arg 3
+                "height": font_height,  # Font(...) arg 4  (line height)
+                "descender": descender,
+                "xheight": xheight,
+                "capheight": capheight,
+                "glyphs": {str(k): v for k, v in sorted(infos.items())},
+            }
+        )
+        print(
+            f"exported {spec['id']}: {len(infos)} glyphs, bpp={bpp}, size={size}, "
+            f"baseline={ascender}, height={font_height}"
+        )
     return out
 
 
@@ -152,24 +159,34 @@ def verify(fixtures: dict, main_cpp: Path) -> int:
         blob = blobs[blob_name]
 
         device = {}
-        for g in re.finditer(r"\{(\d+),\s*\(\w+\s*\+\s*(\d+)\),\s*(-?\d+),\s*(-?\d+),\s*(-?\d+),\s*(-?\d+),\s*(-?\d+)\}", m.group(1)):
+        for g in re.finditer(
+            r"\{(\d+),\s*\(\w+\s*\+\s*(\d+)\),\s*(-?\d+),\s*(-?\d+),\s*(-?\d+),\s*(-?\d+),\s*(-?\d+)\}",
+            m.group(1),
+        ):
             cp, off, adv, ox, oy, w, h = (int(x) for x in g.groups())
             device[cp] = (off, adv, ox, oy, w, h)
 
         # Font(m, len, baseline, height, descender, xheight, capheight, bpp)
-        fm = re.search(r"new\(" + font["id"] + r"\) font::Font\([^,]+,\s*(\d+),\s*(\d+),\s*(\d+),\s*(\d+),\s*(\d+),\s*(\d+),\s*(\d+)\)", text)
+        fm = re.search(
+            r"new\("
+            + font["id"]
+            + r"\) font::Font\([^,]+,\s*(\d+),\s*(\d+),\s*(\d+),\s*(\d+),\s*(\d+),\s*(\d+),\s*(\d+)\)",
+            text,
+        )
         if not fm:
             problems.append(f"{font['id']}: Font(...) ctor not found")
             continue
         n, baseline, height, descender, xheight, capheight, bpp = (int(x) for x in fm.groups())
 
-        for label, want, got in [("glyph count", len(font["glyphs"]), n),
-                                 ("baseline", font["baseline"], baseline),
-                                 ("height", font["height"], height),
-                                 ("descender", font["descender"], descender),
-                                 ("xheight", font["xheight"], xheight),
-                                 ("capheight", font["capheight"], capheight),
-                                 ("bpp", font["bpp"], bpp)]:
+        for label, want, got in [
+            ("glyph count", len(font["glyphs"]), n),
+            ("baseline", font["baseline"], baseline),
+            ("height", font["height"], height),
+            ("descender", font["descender"], descender),
+            ("xheight", font["xheight"], xheight),
+            ("capheight", font["capheight"], capheight),
+            ("bpp", font["bpp"], bpp),
+        ]:
             if want != got:
                 problems.append(f"{font['id']}: {label} fixture={want} device={got}")
 
@@ -181,13 +198,17 @@ def verify(fixtures: dict, main_cpp: Path) -> int:
             off, adv, ox, oy, w, h = device[cp]
             mine = (gi["advance"], gi["offset_x"], gi["offset_y"], gi["width"], gi["height"])
             if mine != (adv, ox, oy, w, h):
-                problems.append(f"{font['id']}: U+{cp:04X} metrics fixture={mine} device={(adv, ox, oy, w, h)}")
+                problems.append(
+                    f"{font['id']}: U+{cp:04X} metrics fixture={mine} device={(adv, ox, oy, w, h)}"
+                )
                 continue
             nbytes = (w * h * bpp + 7) // 8
-            if blob[off:off + nbytes].hex() != gi["bitmap"]:
+            if blob[off : off + nbytes].hex() != gi["bitmap"]:
                 problems.append(f"{font['id']}: U+{cp:04X} bitmap differs from the device build")
         if not any(p.startswith(font["id"] + ":") for p in problems):
-            print(f"verified {font['id']}: all glyph metrics + bitmaps byte-identical to the device build")
+            print(
+                f"verified {font['id']}: all glyph metrics + bitmaps byte-identical to the device build"
+            )
 
     if problems:
         print("\nFIXTURE MISMATCH:")
@@ -218,12 +239,15 @@ def check(fonts: list[dict], out_path: Path) -> int:
             gone = [chr(c) for c in have if c not in want]
             problems.append(
                 f"{spec['id']}: glyph set differs (YAML {len(want)} vs fixtures {len(have)}); "
-                f"missing from fixtures: {extra!r}; no longer in YAML: {gone!r}")
+                f"missing from fixtures: {extra!r}; no longer in YAML: {gone!r}"
+            )
         for key in ("size", "bpp"):
             if spec[key] != f[key]:
                 problems.append(f"{spec['id']}: {key} YAML={spec[key]} fixtures={f[key]}")
         if f.get("source") != spec["file"]:
-            problems.append(f"{spec['id']}: font file YAML={spec['file']} fixtures={f.get('source')}")
+            problems.append(
+                f"{spec['id']}: font file YAML={spec['file']} fixtures={f.get('source')}"
+            )
 
     if problems:
         print("FONT FIXTURES OUT OF DATE:")
@@ -232,16 +256,21 @@ def check(fonts: list[dict], out_path: Path) -> int:
         print("\nRe-export them (needs esphome + freetype-py):")
         print("    python test/export_font_metrics.py")
         return 1
-    print(f"font fixtures: {out_path.name} matches the YAML font blocks "
-          f"({len(fonts)} fonts, {sum(len(f['glyphs']) for f in data['fonts'])} glyphs)")
+    print(
+        f"font fixtures: {out_path.name} matches the YAML font blocks "
+        f"({len(fonts)} fonts, {sum(len(f['glyphs']) for f in data['fonts'])} glyphs)"
+    )
     return 0
 
 
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--verify", metavar="MAIN_CPP", help="compare against a generated main.cpp")
-    ap.add_argument("--check", action="store_true",
-                    help="compare the committed fixtures with the YAML (no export)")
+    ap.add_argument(
+        "--check",
+        action="store_true",
+        help="compare the committed fixtures with the YAML (no export)",
+    )
     ap.add_argument("--out", default=str(OUT))
     args = ap.parse_args()
 

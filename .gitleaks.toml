@@ -1,0 +1,25 @@
+# gitleaks configuration — https://github.com/gitleaks/gitleaks#configuration
+#
+# Verified before publishing: `gitleaks detect --source .` over the full history
+# reported "no leaks found" (30 commits), and `secrets.yaml` has never been
+# committed (it is git-ignored, and CI re-checks all history on every push).
+#
+# The allowlist is for KNOWN-SAFE content, not real secrets: rendered images and
+# the glyph fixture are dense binary/hex blobs whose runs are indistinguishable
+# from credentials to the default entropy heuristics. Nothing authored by hand is
+# allowlisted, so a real secret in the config, docs or scripts is still caught.
+
+[extend]
+useDefault = true
+
+[allowlist]
+paths = [
+    # Build tree and render output — git-ignored, machine-written.
+    '''test/build/''',
+    '''test/output/''',
+    # Tracked but binary: the README's rendered images and the glyph bitmaps.
+    '''docs/images/''',
+    '''test/fonts/metrics\.json''',
+    # Local editor state, if anyone tracks it.
+    '''\.vscode/''',
+]

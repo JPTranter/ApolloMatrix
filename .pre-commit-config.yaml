@@ -1,0 +1,36 @@
+# Pre-commit configuration — https://pre-commit.com
+#
+# Hooks run against staged content on every commit. gitleaks is the one that
+# matters (secret scanning); the rest are cheap hygiene checks.
+#
+# Install once:   pip install pre-commit && pre-commit install
+# Run now:        pre-commit run --all-files
+#
+# NOTE: the first run of end-of-file-fixer / trailing-whitespace rewrites files,
+# which fails that commit. Re-add and commit again — normal.
+
+repos:
+  # Secret scanning. Blocks the commit on a match.
+  # Pinned to the version this config was verified against locally (8.30.1) and
+  # the same one CI installs, so a local pass and a CI pass mean the same thing.
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.30.1
+    hooks:
+      - id: gitleaks
+        args: [--config, .gitleaks.toml]
+
+  # Basic hygiene (some auto-fix).
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.6.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+        # ApolloMatrix.yaml uses ESPHome's custom tags (!secret, !include,
+        # !lambda) that PyYAML cannot construct: "could not determine a
+        # constructor for the tag". ESPHome validates it instead —
+        # `esphome config ApolloMatrix.yaml` (see README).
+        exclude: ^ApolloMatrix\.yaml$
+      - id: check-added-large-files   # catches accidentally-committed binaries
+      - id: check-merge-conflict
+      - id: detect-private-key        # blocks a committed private key outright

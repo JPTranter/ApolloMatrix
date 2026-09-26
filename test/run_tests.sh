@@ -49,6 +49,10 @@ echo "== font fixtures vs YAML =="
 "$PY" "$(win "$HERE/export_font_metrics.py")" --check || rc_sync=$?
 
 echo
+echo "== docs links / anchors (as GitHub would render them) =="
+"$PY" "$(win "$HERE/check_docs.py")" "$(win "$HERE/..")" || rc_sync=$?
+
+echo
 echo "== scenarios =="
 rm -rf "$OUT/traces" "$OUT/images" "$OUT/png" "$OUT/png_device"
 mkdir -p "$OUT/traces"

@@ -1,0 +1,23 @@
+# Normalise line endings in the repo; check out native on Windows.
+# Without this every commit warns "LF will be replaced by CRLF" and the working
+# tree silently diverges from the index depending on core.autocrlf.
+* text=auto
+
+*.md    text
+*.py    text diff=python
+*.cpp   text
+*.h     text
+*.json  text
+*.yaml  text
+*.yml   text
+*.txt   text
+
+# Shell scripts and the ESPHome config must stay LF even when cloned on Windows:
+# a CRLF shebang breaks the scripts on Linux, including CI.
+*.sh    text eol=lf
+*.yaml  text eol=lf
+
+# Binary — never normalise or diff these.
+*.ttf   binary
+*.png   binary
+*.gif   binary

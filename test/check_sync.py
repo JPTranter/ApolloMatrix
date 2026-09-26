@@ -22,10 +22,10 @@ from pathlib import Path
 
 
 def normalize(text: str) -> str:
-    t = text.replace("\\xC2\\xB0", "\u00b0")   # C++ escape -> the degree sign
-    t = t.replace('"', "")                      # drop quotes (C++ adjacent literals
-                                                # like "FEELS %.1f\xC2\xB0""C" split tokens)
-    t = re.sub(r"\s+", "", t)                   # drop all whitespace
+    t = text.replace("\\xC2\\xB0", "\u00b0")  # C++ escape -> the degree sign
+    t = t.replace('"', "")  # drop quotes (C++ adjacent literals
+    # like "FEELS %.1f\xC2\xB0""C" split tokens)
+    t = re.sub(r"\s+", "", t)  # drop all whitespace
     return t
 
 
@@ -39,30 +39,26 @@ def lambda_block(yaml_text: str) -> str:
 
 # (label, yaml token, harness token)
 CHECKS = [
-    ("window is substitution-driven",
-     "now.hour>=${start_hour}&&now.hour<off_h",
-     "in.hour>=8&&in.hour<off_h"),
-    ("override respects cutoff",
-     "id(manual_override)&&now.hour<off_h",
-     "manual_override&&in.hour<off_h"),
-    ("presence gate needs state",
-     "id(room_presence).has_state()&&id(room_presence).state",
-     "in.presence_sensor_has_state&&in.presence_present"),
-    ("date line anchor",
-     "strftime(32,6",
-     "text(32,6"),
-    ("temperature line anchor",
-     "printf(31,22",
-     "text(31,22"),
-    ("FEELS line anchor",
-     "printf(32,38",
-     "text(32,38"),
-    ("HMDTY line anchor",
-     "printf(32,48",
-     "text(32,48"),
-    ("DEWPT line anchor",
-     "printf(32,58",
-     "text(32,58"),
+    (
+        "window is substitution-driven",
+        "now.hour>=${start_hour}&&now.hour<off_h",
+        "in.hour>=8&&in.hour<off_h",
+    ),
+    (
+        "override respects cutoff",
+        "id(manual_override)&&now.hour<off_h",
+        "manual_override&&in.hour<off_h",
+    ),
+    (
+        "presence gate needs state",
+        "id(room_presence).has_state()&&id(room_presence).state",
+        "in.presence_sensor_has_state&&in.presence_present",
+    ),
+    ("date line anchor", "strftime(32,6", "text(32,6"),
+    ("temperature line anchor", "printf(31,22", "text(31,22"),
+    ("FEELS line anchor", "printf(32,38", "text(32,38"),
+    ("HMDTY line anchor", "printf(32,48", "text(32,48"),
+    ("DEWPT line anchor", "printf(32,58", "text(32,58"),
     ("trend anchor x", "ax=54", "ax=54"),
     ("trend anchor y", "ay=21", "ay=21"),
     ("trend up threshold", "if(temp>prev+0.1)", "if(temp>prev+0.1)"),
@@ -75,12 +71,12 @@ CHECKS = [
     ("ramp: <20C", "temp<20.0", "temp<20.0"),
     ("ramp: <25C", "temp<25.0", "temp<25.0"),
     ("ramp: <30C", "temp<30.0", "temp<30.0"),
-    ("temperature text dimmed by brightness",
-     "tc.red*=bri;tc.green*=bri;tc.blue*=bri;",
-     "tc.r*bri,tc.g*bri,tc.b*bri"),
-    ("date/time format zero-padded",
-     "%d/%m%H:%M",
-     "%02d/%02d%02d:%02d"),
+    (
+        "temperature text dimmed by brightness",
+        "tc.red*=bri;tc.green*=bri;tc.blue*=bri;",
+        "tc.r*bri,tc.g*bri,tc.b*bri",
+    ),
+    ("date/time format zero-padded", "%d/%m%H:%M", "%02d/%02d%02d:%02d"),
 ]
 
 
@@ -91,7 +87,7 @@ def parse_substitutions(yaml_text: str) -> dict:
         return {}
     subs = {}
     for line in m.group(1).splitlines():
-        line = line.split("#", 1)[0]          # drop trailing comments
+        line = line.split("#", 1)[0]  # drop trailing comments
         mm = re.match(r"\s+([A-Za-z_]\w*):\s*(.*?)\s*$", line)
         if mm and mm.group(2):
             subs[mm.group(1)] = mm.group(2).strip().strip("'\"")
@@ -112,8 +108,10 @@ def mirror_checks(subs: dict, harness_text: str, scenarios_text: str) -> list[st
     # could be testing a different window from the one the config actually uses.
     start = subs.get("start_hour")
     if start is None:
-        problems.append("start_hour: missing from the `substitutions:` block — "
-                        "cannot verify the harness's window start")
+        problems.append(
+            "start_hour: missing from the `substitutions:` block — "
+            "cannot verify the harness's window start"
+        )
     else:
         m = re.search(r"in\.hour\s*>=\s*(\d+)", harness_text)
         if not m:
@@ -123,8 +121,10 @@ def mirror_checks(subs: dict, harness_text: str, scenarios_text: str) -> list[st
 
     off = subs.get("off_hour")
     if off is None:
-        problems.append("off_hour: missing from the `substitutions:` block — "
-                        "cannot verify the harness's cutoff")
+        problems.append(
+            "off_hour: missing from the `substitutions:` block — "
+            "cannot verify the harness's cutoff"
+        )
     else:
         m = re.search(r"in\.off_hour\s*=\s*(\d+)", scenarios_text)
         if not m:
@@ -168,8 +168,10 @@ def main() -> int:
         print("then re-run test/run_tests.sh.")
         return 1
 
-    print(f"logic sync: {len(CHECKS)} canonical expressions present in both; "
-          f"{len(subs)} substitution(s) parsed and the window defaults mirror the harness")
+    print(
+        f"logic sync: {len(CHECKS)} canonical expressions present in both; "
+        f"{len(subs)} substitution(s) parsed and the window defaults mirror the harness"
+    )
     return 0
 
 
