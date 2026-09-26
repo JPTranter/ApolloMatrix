@@ -61,7 +61,7 @@ esphome:
       # Wait until the Home Assistant sensor actually has data
       - wait_until:
           lambda: 'return id(current_temp).has_state();'
-      
+
       # Now that we have data, prime the history slots
       - globals.set:
           id: temp_10m
@@ -72,7 +72,7 @@ esphome:
       - globals.set:
           id: temp_30m
           value: !lambda 'return id(current_temp).state;'
-  
+
       - output.turn_on: onboard_power_gate
 
       # Start the 10-minute rotation script
@@ -299,7 +299,7 @@ display:
           const int ax = 54;
           const int ay = 21;
 
-          if (temp > prev + 0.1) { 
+          if (temp > prev + 0.1) {
               esphome::Color up_col = esphome::Color(255*bri, 0, 0);
               it.draw_pixel_at(ax + 2, ay - 3, up_col);
               it.line(ax + 1, ay - 2, ax + 3, ay - 2, up_col);

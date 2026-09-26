@@ -24,6 +24,9 @@ repos:
     rev: v4.6.0
     hooks:
       - id: trailing-whitespace
+        # The vendored OFL licence texts are upstream files: reformatting them
+        # would alter third-party licence text, so they are left byte-exact.
+        exclude: ^test/fonts/OFL-.*\.txt$
       - id: end-of-file-fixer
       - id: check-yaml
         # ApolloMatrix.yaml uses ESPHome's custom tags (!secret, !include,
