@@ -1,20 +1,39 @@
 Fonts vendored for the host render harness
 ==========================================
 
-These are the fonts the device itself uses (see `font:` in apollomatrix.yaml,
-declared as `gfonts://Silkscreen` and `gfonts://Roboto`). They are copied here so
-`rasterize.py` can render text with the real typefaces, offline and reproducibly.
+These are the fonts the device itself uses — the `font:` block in apollomatrix.yaml
+declares them as `gfonts://Silkscreen` and `gfonts://Roboto`, and **ESPHome downloads
+them on the build host**. Nothing in the firmware path reads this directory: the copies
+here exist only so `test/rasterize.py` can draw the caption chrome and
+`test/export_font_metrics.py` can regenerate the glyph fixtures without network access.
 
 Silkscreen-Regular.ttf
   Silkscreen, by Jason Kottke.
-  License: SIL Open Font License 1.1 (OFL-1.1).
+  Copyright 2001 The Silkscreen Project Authors
+  (https://github.com/googlefonts/silkscreen)
+  Licence: SIL Open Font License 1.1 — full text in `OFL-Silkscreen.txt`
   Source:  https://fonts.google.com/specimen/Silkscreen
 
 Roboto-Regular.ttf
   Roboto (Regular, 400), by Christian Robertson / Google.
-  License: Apache License 2.0.
+  Copyright 2011 The Roboto Project Authors
+  (https://github.com/googlefonts/roboto-classic)
+  Licence: SIL Open Font License 1.1 — full text in `OFL-Roboto.txt`
   Source:  https://fonts.google.com/specimen/Roboto
 
-Both licenses permit redistribution. ESPHome downloads the same files at build
-time via `gfonts://`; to refresh them, run `esphome config apollomatrix.yaml`
-locally and copy the TTFs out of `<config>/.esphome/font/`.
+Both fonts are OFL 1.1. Note that Roboto is **OFL, not Apache-2.0** — it was
+relicensed, so older references (including an earlier version of this file) are out of
+date.
+
+Why bundling them here is permitted: OFL clause 2 allows the Font Software to be
+"bundled, redistributed and/or sold with any software, provided that each copy contains
+the above copyright notice and this license" — hence the `OFL-*.txt` files alongside
+the fonts. Neither font declares a Reserved Font Name and neither is modified here, so
+no further conditions apply. Rendering text with a font (the firmware's glyph bitmaps,
+or these previews) produces output rather than redistributing the font software.
+
+Refreshing them: run `esphome config apollomatrix.yaml` locally and copy the `.ttf`
+files out of `<config-dir>/.esphome/font/`, or download current releases from the
+sources above. If they are missing, rendering still works — the glyph fixtures
+(`metrics.json`) are committed and the caption font falls back to PIL's default — but
+`export_font_metrics.py` cannot re-export until a TTF is present.

@@ -251,7 +251,9 @@ that too, but the glyph sets no longer need it.
 
 **`test/matrix_logic.h` is a copy** of the YAML lambda — `apollomatrix.yaml` stays
 the source of truth for the device. Changes must be mirrored in both; the sync
-check catches most drift. Fonts are vendored in `test/fonts/` (see its NOTICE).
+check catches most drift. Fonts for the previews are vendored in `test/fonts/`
+(both OFL 1.1, licence texts alongside — see its `NOTICE.txt`); the firmware build
+never uses them.
 
 ## Known issues / TODO
 
