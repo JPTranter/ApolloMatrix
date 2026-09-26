@@ -1,0 +1,329 @@
+esphome:
+  name: apollomatrix
+  on_boot:
+    priority: -100
+    then:
+      # Wait until the Home Assistant sensor actually has data
+      - wait_until:
+          lambda: 'return id(current_temp).has_state();'
+      
+      # Now that we have data, prime the history slots
+      - globals.set:
+          id: temp_10m
+          value: !lambda 'return id(current_temp).state;'
+      - globals.set:
+          id: temp_20m
+          value: !lambda 'return id(current_temp).state;'
+      - globals.set:
+          id: temp_30m
+          value: !lambda 'return id(current_temp).state;'
+  
+      - output.turn_on: onboard_power_gate
+
+      # Start the 10-minute rotation script
+      - script.execute: update_temp_trend
+
+esp32:
+  board: esp32-s3-devkitc-1
+  framework:
+    type: esp-idf
+
+api:
+  reboot_timeout: 0s
+
+ota:
+  - platform: esphome
+
+logger:
+  baud_rate: 0
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+
+output:
+  - platform: gpio
+    pin: GPIO7
+    id: onboard_power_gate
+
+sensor:
+  - platform: homeassistant
+    id: current_temp
+    entity_id: sensor.scoresby_temp
+  - platform: homeassistant
+    id: current_dew_point
+    entity_id: sensor.scoresby_dew_point
+  - platform: homeassistant
+    id: current_humidity
+    entity_id: sensor.scoresby_humidity
+  - platform: homeassistant
+    id: current_feels_like
+    entity_id: sensor.scoresby_temp_feels_like
+
+globals:
+  - id: display_active
+    type: bool
+    initial_value: 'true'
+  - id: last_weather
+    type: std::string
+    initial_value: '""'
+  - id: temp_10m
+    type: float
+    initial_value: '22.0'
+  - id: temp_20m
+    type: float
+    initial_value: '22.0'
+  - id: temp_30m
+    type: float
+    initial_value: '22.0'
+  - id: global_brightness
+    type: float
+    restore_value: yes
+    initial_value: '0.5'
+  - id: manual_override
+    type: bool
+    restore_value: no
+    initial_value: 'false'
+  - id: off_hour_cutoff
+    type: int
+    initial_value: '22'
+
+number:
+  - platform: template
+    name: "Matrix Brightness"
+    id: matrix_brightness
+    min_value: 0.1
+    max_value: 1.0
+    step: 0.1
+    initial_value: 0.5
+    optimistic: true
+    restore_value: true
+    on_value:
+      then:
+        - component.update: my_display
+
+switch:
+  - platform: template
+    name: "Matrix Toggle"
+    id: matrix_force_on
+    lambda: 'return id(manual_override);'
+    turn_on_action:
+      - globals.set:
+          id: manual_override
+          value: 'true'
+      - component.update: my_display
+    turn_off_action:
+      - globals.set:
+          id: manual_override
+          value: 'false'
+      - component.update: my_display
+
+script:
+  - id: show_weather_timer
+    mode: restart
+    then:
+      - globals.set:
+          id: display_active
+          value: 'true'
+      - component.update: my_display
+      - delay: 60s
+      - globals.set:
+          id: display_active
+          value: 'false'
+      - component.update: my_display
+  - id: update_temp_trend
+    mode: restart
+    then:
+      - while:
+          condition:
+            lambda: 'return true;'
+          then:
+            - delay: 10min
+            - globals.set:
+                id: temp_30m
+                value: !lambda 'return id(temp_20m);'
+            - globals.set:
+                id: temp_20m
+                value: !lambda 'return id(temp_10m);'
+            - globals.set:
+                id: temp_10m
+                value: !lambda 'return id(current_temp).state;'
+            - logger.log: "Trend Shifted: 30m anchor updated."
+
+text_sensor:
+  - platform: homeassistant
+    id: weather_condition
+    entity_id: sensor.scoresby_cloud_situation
+    on_value:
+      then:
+        - if:
+            condition:
+              lambda: 'return x != id(last_weather);'
+            then:
+              - globals.set:
+                  id: last_weather
+                  value: !lambda 'return x;'
+              - script.execute: show_weather_timer
+              - component.update: my_display
+
+time:
+  - platform: homeassistant
+    id: ha_time
+    timezone: "Australia/Melbourne"
+    on_time:
+      - seconds: 0
+        minutes: 0
+        hours: 22
+        then:
+          - globals.set:
+              id: manual_override
+              value: 'false'
+          - component.update: my_display
+
+font:
+  - file: "gfonts://Silkscreen"
+    id: weather_font
+    size: 8
+    bpp: 2
+    glyphs: '-[PHONE]°CEFLSKMPUIWDHTY .:%/'
+  - file: "gfonts://Roboto"
+    id: weather_font_l
+    size: 14
+    bpp: 2
+    glyphs: '[PHONE].C°'
+
+light:
+  - platform: esp32_rmt_led_strip
+    id: status_led
+    name: "Onboard Status LED"
+    pin: GPIO3
+    num_leds: 1
+    rgb_order: GRB
+    chipset: WS2812
+    restore_mode: ALWAYS_OFF
+    effects:
+      - pulse:
+          name: "Heartbeat"
+          transition_length: 1s
+          update_interval: 1s
+          min_brightness: 0.2
+          max_brightness: 1.0
+
+display:
+  - platform: hub75
+    id: my_display
+    panel_width: 64
+    panel_height: 64
+    shift_driver: FM6126A
+    scan_wiring: STANDARD_TWO_SCAN
+    bit_depth: 10
+    clock_speed: 8MHZ
+    clock_phase: true
+    latch_blanking: 1
+    update_interval: 10s
+    double_buffer: True
+    brightness: 1
+
+    r1_pin: GPIO42
+    g1_pin: GPIO41
+    b1_pin: GPIO40
+    r2_pin: GPIO38
+    g2_pin: GPIO39
+    b2_pin: GPIO37
+    a_pin: GPIO45
+    b_pin: GPIO36
+    c_pin: GPIO48
+    d_pin: GPIO35
+    e_pin: GPIO21
+    clk_pin: GPIO2
+    lat_pin: GPIO47
+    oe_pin: GPIO14
+
+    lambda: |-
+      auto now = id(ha_time).now();
+      float bri = id(matrix_brightness).state;
+      int off_h = id(off_hour_cutoff);
+
+      bool is_weekday = (now.day_of_week >= 2 && now.day_of_week <= 6);
+      bool is_weekend = !is_weekday;
+      bool weekday_condition = (is_weekday && now.hour >= 16 && now.hour < off_h);
+      bool weekend_condition = (is_weekend && now.hour >= 10 && now.hour < off_h);
+      bool forced_on = (id(manual_override) && now.hour < off_h);
+
+      if (now.is_valid() && (weekday_condition || weekend_condition || forced_on)) {
+        it.fill(esphome::Color(0, 0, 0));
+
+        float drift_phase = (millis() % 60000) / 60000.0f * 2.0f * M_PI;
+        int8_t dx = roundf(sinf(drift_phase) * 1.5f);
+        int8_t dy = roundf(cosf(drift_phase) * 1.5f);
+        
+        it.strftime(32 + dx, 6 + dy, id(weather_font), esphome::Color(255*bri, 255*bri, 255*bri), TextAlign::CENTER, "%d/%m %H:%M", now);
+
+        if (id(current_temp).has_state()) {
+          float temp = id(current_temp).state;
+          float prev = id(temp_30m);
+          esphome::Color tc;
+
+          esphome::Color ice(255, 255, 255), blue(0, 0, 255), cyan(0, 255, 255), green(0, 255, 0), orange(255, 120, 0), red(255, 0, 0);
+
+          if (temp <= 2.0) { tc = ice; }
+          else if (temp < 10.0) {
+              float r = (temp - 2.0) / 8.0;
+              tc = esphome::Color(ice.red + r*(blue.red-ice.red), ice.green + r*(blue.green-ice.green), ice.blue + r*(blue.blue-ice.blue));
+          } else if (temp < 20.0) {
+              float r = (temp - 10.0) / 10.0;
+              tc = esphome::Color(blue.red + r*(cyan.red-blue.red), blue.green + r*(cyan.green-blue.green), blue.blue + r*(cyan.blue-blue.blue));
+          } else if (temp < 25.0) {
+              float r = (temp - 20.0) / 5.0;
+              tc = esphome::Color(cyan.red + r*(green.red-cyan.red), cyan.green + r*(green.green-cyan.green), cyan.blue + r*(green.blue-cyan.blue));
+          } else if (temp < 30.0) {
+              float r = (temp - 25.0) / 5.0;
+              tc = esphome::Color(green.red + r*(orange.red-green.red), green.green + r*(orange.green-green.green), green.blue + r*(orange.blue-green.blue));
+          } else { tc = red; }
+
+          // --- UPDATE ONBOARD STATUS LED WITH HEARTBEAT ---
+          auto call = id(status_led).make_call();
+          call.set_state(true);
+          call.set_effect("Heartbeat"); // Enable the pulsing effect
+          call.set_rgb(tc.red / 255.0f, tc.green / 255.0f, tc.blue / 255.0f);
+          call.set_brightness(bri); 
+          call.perform();
+
+          // Manual Brightness Application for Matrix
+          tc.red *= bri; tc.green *= bri; tc.blue *= bri;
+          it.printf(31 + dx, 22 + dy, id(weather_font_l), tc, TextAlign::CENTER, "%.1f°C", temp);
+
+          // --- TREND ARROW (30m Anchor) ---
+          int8_t ax = 54 + dx; 
+          int8_t ay = 21 + dy; 
+
+          if (temp > prev + 0.1) { 
+              esphome::Color up_col = esphome::Color(255*bri, 0, 0);
+              it.draw_pixel_at(ax + 2, ay - 3, up_col);
+              it.line(ax + 1, ay - 2, ax + 3, ay - 2, up_col);
+              it.line(ax, ay - 1, ax + 4, ay - 1, up_col);
+              it.line(ax - 1, ay, ax + 5, ay, up_col);
+          } else if (temp < prev - 0.1) {
+              esphome::Color dn_col = esphome::Color(0, 0, 255*bri);
+              it.line(ax - 1, ay - 3, ax + 5, ay - 3, dn_col);
+              it.line(ax, ay - 2, ax + 4, ay - 2, dn_col);
+              it.line(ax + 1, ay - 1, ax + 3, ay - 1, dn_col);
+              it.draw_pixel_at(ax + 2, ay, dn_col);
+          }
+        }
+
+        if (id(current_feels_like).has_state()) {
+          it.printf(32+dx, 38+dy, id(weather_font), esphome::Color(255*bri, 20*bri, 60*bri), TextAlign::CENTER, "FEELS %.1f°C", id(current_feels_like).state);
+        }
+        if (id(current_humidity).has_state()) {
+          it.printf(32+dx, 48+dy, id(weather_font), esphome::Color(0, 255*bri, 255*bri), TextAlign::CENTER, "HMDTY %.0f%%", id(current_humidity).state);
+        }
+        if (id(current_dew_point).has_state()) {
+          it.printf(32+dx, 58+dy, id(weather_font), esphome::Color(0, 255*bri, 0), TextAlign::CENTER, "DEWPT %.1f°C", id(current_dew_point).state);
+        }
+
+      } else {
+        it.fill(esphome::Color(0, 0, 0));
+        auto call = id(status_led).turn_off();
+        call.perform();
+      }

@@ -1,0 +1,23 @@
+# ESPHome secrets (never commit real values)
+secrets.yaml
+
+# ESPHome build cache / generated files
+.esphome/
+*.bin
+*.elf
+*.map
+
+# Device Builder local state
+.device-builder*
+.receiver_peers.json
+.offloader_pairings.json
+
+# Python / tooling
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# OS noise
+.DS_Store
+Thumbs.db
