@@ -125,10 +125,11 @@ Two styles are rendered for every scenario:
 - **crisp** → `test/output/png/` — the faithful 64×64 pixel grid at 8× zoom, with a
   `_contact_sheet.png`. Use this to judge layout and content.
 - **device** → `test/output/png_device/` — an LED-panel look: round LEDs with a glow
-  halo on a dark mask, faint unlit packages, per-LED binning spread, slight vignette,
-  plus a contact sheet. Presentation only — the default `--exposure 2.2` mimics a
-  dark-room photo and `--exposure 1.0` gives the true brightness. Use this to judge
-  how it will *appear*.
+  halo on a dark mask and faint unlit packages between them, plus a contact sheet.
+  Deliberately **uniform** — no per-LED brightness spread and no vignette, so every
+  LED of the same colour renders identically. Presentation only — the default
+  `--exposure 2.2` mimics a dark-room photo and `--exposure 1.0` gives the true
+  brightness. Use this to judge how it will *appear*.
 
 Knobs: `rasterize.py [traces_dir] [out_dir] --style crisp|device --cell 16 --exposure 2.2`.
 

@@ -206,9 +206,8 @@ UNLIT_LEVEL = 14        # faint dots the unlit packages catch
 CORE_RADIUS = 0.30      # LED die radius, in cell units
 GLOW_SIGMA = 0.52
 GLOW_GAIN = 0.32
-VIGNETTE = 0.15
-LED_VARIATION = 0.06    # per-LED brightness spread (real panels bin their LEDs)
-LED_VARIATION_SEED = 20260926
+# Deliberately uniform: no per-LED brightness spread and no vignette, so every LED
+# of the same colour renders identically.
 
 
 def device_look(panel: Image.Image, cell: int = DEVICE_CELL,
@@ -227,11 +226,6 @@ def device_look(panel: Image.Image, cell: int = DEVICE_CELL,
     r = np.hypot(fx - cj, fy - ci)        # distance from the LED centre, in cell units
 
     led = led_grid[ci, cj]                # the LED colour behind every pixel
-    # slight per-LED spread, the way real panels bin their LEDs (deterministic)
-    rng = np.random.default_rng(LED_VARIATION_SEED)
-    gain = 1.0 + np.clip(rng.normal(0.0, LED_VARIATION, size=(n, n)),
-                         -3 * LED_VARIATION, 3 * LED_VARIATION)
-    led = led * gain[ci, cj][..., None]
     lit = led.max(axis=2) > 0.5
 
     out = np.empty((size, size, 3), np.float32)
@@ -245,10 +239,6 @@ def device_look(panel: Image.Image, cell: int = DEVICE_CELL,
     core = np.clip(1.0 - (r / CORE_RADIUS) ** 4, 0.0, 1.0)
     halo = np.exp(-(r / GLOW_SIGMA) ** 2)
     out += lit[..., None] * led * (core + GLOW_GAIN * halo)[..., None]
-
-    # gentle vignette, like a photo of the panel
-    rad = np.hypot(xx - size / 2.0, yy - size / 2.0) / (size / 2.0)
-    out *= (1.0 - VIGNETTE * np.clip(rad, 0.0, 1.0) ** 2)[..., None]
 
     return Image.fromarray(np.clip(out * exposure, 0.0, 255.0).astype(np.uint8))
 
