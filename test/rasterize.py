@@ -203,8 +203,8 @@ def render_panel(trace: dict, fonts: dict[str, DeviceFont]) -> Image.Image:
 # glow halo on lit ones. The crisp renderer above stays the faithful one - see
 # README "Rendering fidelity" and lesson 19.
 DEVICE_CELL = 16        # px per LED in the device-style output
-DEVICE_EXPOSURE = 2.2   # gain to mimic a dark-room photo (1.0 = the true brightness)
-PANEL_BG = (11, 11, 13)
+DEVICE_EXPOSURE = 2.2   # gain on the LEDs' emitted light (1.0 = the true brightness)
+PANEL_BG = (6, 6, 8)    # the mask between LEDs
 UNLIT_LEVEL = 7         # faint dots the unlit packages catch (lower = more contrast)
 CORE_RADIUS = 0.30      # LED die radius, in cell units
 GLOW_SIGMA = 0.52
@@ -234,16 +234,19 @@ def device_look(panel: Image.Image, cell: int = DEVICE_CELL,
     out = np.empty((size, size, 3), np.float32)
     out[:] = PANEL_BG
 
-    # unlit packages: faint round dots, visible on the real panel
+    # unlit packages: faint round dots, visible on the real panel.
+    # NB: these and the mask are NOT scaled by `exposure` - exposure models the
+    # camera's gain on emitted light, so scaling the background with it would lift
+    # the whole panel to grey.
     dot = np.clip(1.0 - (r / 0.30) ** 2, 0.0, 1.0)
     out += (~lit)[..., None] * dot[..., None] * UNLIT_LEVEL
 
     # lit LEDs: a bright die with a soft halo
     core = np.clip(1.0 - (r / CORE_RADIUS) ** 4, 0.0, 1.0)
     halo = np.exp(-(r / GLOW_SIGMA) ** 2)
-    out += lit[..., None] * led * (core + GLOW_GAIN * halo)[..., None]
+    out += lit[..., None] * led * exposure * (core + GLOW_GAIN * halo)[..., None]
 
-    return Image.fromarray(np.clip(out * exposure, 0.0, 255.0).astype(np.uint8))
+    return Image.fromarray(np.clip(out, 0.0, 255.0).astype(np.uint8))
 
 
 def caption_font(size: int):
