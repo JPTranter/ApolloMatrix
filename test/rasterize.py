@@ -257,14 +257,9 @@ def caption_font(size: int):
 
 
 def caption_lines(trace: dict) -> list[str]:
-    led = trace.get("status_led", {})
-    led_txt = f"LED {led.get('state', '?')}"
-    if led.get("state") == "on":
-        r, g, b = led.get("color", [0, 0, 0])
-        led_txt += f" rgb({r},{g},{b}) bri {led.get('brightness', 0):.2f}"
     return [
         f"{trace.get('name', '?')}   {'PASS' if trace.get('pass') else 'FAIL'}",
-        f"display {'on' if trace.get('display_active') else 'off'}   {led_txt}",
+        f"display {'on' if trace.get('display_active') else 'off'}",
     ]
 
 

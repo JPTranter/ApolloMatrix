@@ -65,13 +65,8 @@ struct Inputs {
   bool dew_valid;      float dew;        // id(current_dew_point)
 };
 
-enum class LedState { Off, On, Unchanged };
-
 struct Result {
   bool display_active = false;
-  LedState led = LedState::Off;
-  Rgb led_color{0, 0, 0};      // status LED colour (pre-brightness, as set_rgb gets it)
-  float led_brightness = 0.0f; // call.set_brightness(bri)
 };
 
 // esphome::Color(float, float, float) truncates toward zero into uint8_t.
@@ -122,7 +117,6 @@ Result render(Canvas &it, const Inputs &in) {
 
   if (in.time_valid && (auto_on || forced_on)) {
     res.display_active = true;
-    res.led = LedState::Unchanged;  // the lambda only touches the LED when temp has state
     it.fill(Rgb{0, 0, 0});
 
     snprintf(buf, sizeof(buf), "%02d/%02d %02d:%02d", in.day, in.month, in.hour, in.minute);
@@ -132,13 +126,6 @@ Result render(Canvas &it, const Inputs &in) {
       const float temp = in.temp;
       const float prev = in.temp_prev;
       const Rgb tc = temp_color(temp);
-
-      // --- UPDATE ONBOARD STATUS LED WITH HEARTBEAT ---
-      // (LED takes the temperature colour at brightness bri; the matrix below is
-      //  dimmed by bri the same way the lambda scales tc by bri.)
-      res.led = LedState::On;
-      res.led_color = tc;
-      res.led_brightness = bri;
 
       const Rgb dimmed = rgb(tc.r * bri, tc.g * bri, tc.b * bri);
       snprintf(buf, sizeof(buf), "%.1f\xC2\xB0""C", temp);
@@ -179,9 +166,6 @@ Result render(Canvas &it, const Inputs &in) {
   } else {
     res.display_active = false;
     it.fill(Rgb{0, 0, 0});
-    res.led = LedState::Off;
-    res.led_color = Rgb{0, 0, 0};
-    res.led_brightness = 0.0f;
   }
 
   return res;

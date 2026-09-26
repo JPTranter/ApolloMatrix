@@ -41,7 +41,6 @@ substitutions:
   shift_driver: FM6126A
   bit_depth: "10"
   gate_pin: GPIO7          # onboard power gate for the panel
-  status_led_pin: GPIO3    # WS2812
   r1_pin: GPIO42
   g1_pin: GPIO41
   b1_pin: GPIO40
@@ -267,23 +266,6 @@ font:
     bpp: 2
     glyphs: '-0123456789.C°'
 
-light:
-  - platform: esp32_rmt_led_strip
-    id: status_led
-    name: "Onboard Status LED"
-    pin: ${status_led_pin}
-    num_leds: 1
-    channel_colors: GRB
-    chipset: WS2812
-    restore_mode: ALWAYS_OFF
-    effects:
-      - pulse:
-          name: "Heartbeat"
-          transition_length: 1s
-          update_interval: 1s
-          min_brightness: 0.2
-          max_brightness: 1.0
-
 display:
   - platform: hub75
     id: my_display
@@ -351,14 +333,6 @@ display:
               tc = esphome::Color(green.red + r*(orange.red-green.red), green.green + r*(orange.green-green.green), green.blue + r*(orange.blue-green.blue));
           } else { tc = red; }
 
-          // --- UPDATE ONBOARD STATUS LED WITH HEARTBEAT ---
-          auto call = id(status_led).make_call();
-          call.set_state(true);
-          call.set_effect("Heartbeat"); // Enable the pulsing effect
-          call.set_rgb(tc.red / 255.0f, tc.green / 255.0f, tc.blue / 255.0f);
-          call.set_brightness(bri); 
-          call.perform();
-
           // Manual Brightness Application for Matrix
           tc.red *= bri; tc.green *= bri; tc.blue *= bri;
           it.printf(31, 22, id(weather_font_l), tc, TextAlign::CENTER, "%.1f°C", temp);
@@ -394,6 +368,4 @@ display:
 
       } else {
         it.fill(esphome::Color(0, 0, 0));
-        auto call = id(status_led).turn_off();
-        call.perform();
       }

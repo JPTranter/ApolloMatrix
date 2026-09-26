@@ -27,7 +27,6 @@ struct Scenario {
   std::string description;
   matrix::Inputs in;
   bool expect_active;
-  matrix::LedState expect_led;
 };
 
 // Baseline: a plausible live reading from the device's HA sensors at 10:32,
@@ -64,53 +63,47 @@ matrix::Inputs base() {
 std::vector<Scenario> build_scenarios() {
   std::vector<Scenario> s;
   auto add = [&](const std::string &name, const std::string &desc, matrix::Inputs in,
-                 bool active, matrix::LedState led) {
-    s.push_back(Scenario{name, desc, in, active, led});
+                 bool active) {
+    s.push_back(Scenario{name, desc, in, active});
   };
 
   // ---- the room-presence gate ---------------------------------------------
   {
     auto in = base();
     add("window_occupied_10am", "In window (08:00-22:00) and room occupied -> shown", in,
-        true, matrix::LedState::On);
+        true);
   }
   {
     auto in = base();
     in.hour = 14; in.presence_present = false;
-    add("window_vacant_1400", "In window but room empty -> blank", in, false,
-        matrix::LedState::Off);
+    add("window_vacant_1400", "In window but room empty -> blank", in, false);
   }
   {
     auto in = base();
     in.hour = 12; in.presence_sensor_has_state = false; in.presence_present = true;
-    add("presence_sensor_no_state", "HA presence sensor has no state -> fail dark", in, false,
-        matrix::LedState::Off);
+    add("presence_sensor_no_state", "HA presence sensor has no state -> fail dark", in, false);
   }
 
   // ---- the 08:00 start / 22:00 cutoff window ------------------------------
   {
     auto in = base();
     in.hour = 7; in.minute = 30;
-    add("before_8am_0730", "Occupied but before the 08:00 start -> blank", in, false,
-        matrix::LedState::Off);
+    add("before_8am_0730", "Occupied but before the 08:00 start -> blank", in, false);
   }
   {
     auto in = base();
     in.hour = 8; in.minute = 0;
-    add("first_minute_0800", "08:00 exactly is inside the window (hour >= 8) -> shown", in, true,
-        matrix::LedState::On);
+    add("first_minute_0800", "08:00 exactly is inside the window (hour >= 8) -> shown", in, true);
   }
   {
     auto in = base();
     in.hour = 21; in.minute = 59;
-    add("last_minute_2159", "21:59 is the last showing minute -> shown", in, true,
-        matrix::LedState::On);
+    add("last_minute_2159", "21:59 is the last showing minute -> shown", in, true);
   }
   {
     auto in = base();
     in.hour = 22; in.minute = 0;
-    add("at_cutoff_2200", "22:00 exactly is outside the window (hour < 22) -> blank", in, false,
-        matrix::LedState::Off);
+    add("at_cutoff_2200", "22:00 exactly is outside the window (hour < 22) -> blank", in, false);
   }
 
   // ---- manual override (Matrix Toggle) ------------------------------------
@@ -118,38 +111,35 @@ std::vector<Scenario> build_scenarios() {
     auto in = base();
     in.hour = 7; in.presence_present = false; in.manual_override = true;
     add("override_before_8am", "Manual override bypasses BOTH presence and the 08:00 start",
-        in, true, matrix::LedState::On);
+        in, true);
   }
   {
     auto in = base();
     in.hour = 14; in.presence_present = false; in.manual_override = true;
-    add("override_room_empty", "Manual override with the room empty -> shown", in, true,
-        matrix::LedState::On);
+    add("override_room_empty", "Manual override with the room empty -> shown", in, true);
   }
   {
     auto in = base();
     in.hour = 23; in.minute = 10; in.presence_present = false; in.manual_override = true;
     add("override_after_cutoff", "Manual override does NOT survive the 22:00 cutoff -> blank",
-        in, false, matrix::LedState::Off);
+        in, false);
   }
 
   // ---- temperature colour ramp + trend arrow ------------------------------
   {
     auto in = base();
     in.temp = 1.0f; in.temp_prev = 1.0f;
-    add("temp_cold_ice", "temp <= 2C -> ice white, no trend arrow", in, true,
-        matrix::LedState::On);
+    add("temp_cold_ice", "temp <= 2C -> ice white, no trend arrow", in, true);
   }
   {
     auto in = base();
     in.temp = 6.0f; in.temp_prev = 6.0f;
-    add("temp_freezing_blue", "temp in the 2-10C ramp -> white->blue mix", in, true,
-        matrix::LedState::On);
+    add("temp_freezing_blue", "temp in the 2-10C ramp -> white->blue mix", in, true);
   }
   {
     auto in = base();
     in.temp = 32.0f; in.temp_prev = 32.0f;
-    add("temp_hot_red", "temp >= 30C -> red", in, true, matrix::LedState::On);
+    add("temp_hot_red", "temp >= 30C -> red", in, true);
   }
   {
     auto in = base();
@@ -157,56 +147,44 @@ std::vector<Scenario> build_scenarios() {
     add("temp_negative",
         "Sub-zero temperature: a real minus sign is drawn (the Roboto glyph set now "
         "includes '-'; before that it drew Font::print()'s placeholder rectangle)", in,
-        true, matrix::LedState::On);
+        true);
   }
   {
     auto in = base();
     in.temp = 12.0f; in.temp_prev = 11.0f;
-    add("trend_up", "temp > anchor + 0.1 -> upward red arrow", in, true, matrix::LedState::On);
+    add("trend_up", "temp > anchor + 0.1 -> upward red arrow", in, true);
   }
   {
     auto in = base();
     in.temp = 11.0f; in.temp_prev = 12.0f;
-    add("trend_down", "temp < anchor - 0.1 -> downward blue arrow", in, true,
-        matrix::LedState::On);
+    add("trend_down", "temp < anchor - 0.1 -> downward blue arrow", in, true);
   }
   {
     auto in = base();
     in.temp = 11.4f; in.temp_prev = 11.4f;
-    add("trend_flat", "temp within +/-0.1 of the anchor -> no arrow", in, true,
-        matrix::LedState::On);
+    add("trend_flat", "temp within +/-0.1 of the anchor -> no arrow", in, true);
   }
 
   // ---- brightness + missing HA sensors ------------------------------------
   {
     auto in = base();
     in.brightness = 1.0f;
-    add("full_brightness", "brightness 1.0 for comparison against the 0.2 baseline", in, true,
-        matrix::LedState::On);
+    add("full_brightness", "brightness 1.0 for comparison against the 0.2 baseline", in, true);
   }
   {
     auto in = base();
     in.temp_valid = false; in.feels_valid = false;
     in.humidity_valid = false; in.dew_valid = false;
-    add("no_ha_sensors", "No weather data: only the date/time is drawn; the LED is untouched",
-        in, true, matrix::LedState::Unchanged);
+    add("no_ha_sensors", "No weather data: only the date/time is drawn",
+        in, true);
   }
   {
     auto in = base();
     in.time_valid = false;
-    add("time_invalid", "HA time not yet valid -> blank even though occupied", in, false,
-        matrix::LedState::Off);
+    add("time_invalid", "HA time not yet valid -> blank even though occupied", in, false);
   }
 
   return s;
-}
-
-const char *led_state_name(matrix::LedState s) {
-  switch (s) {
-    case matrix::LedState::On: return "on";
-    case matrix::LedState::Unchanged: return "unchanged";
-    case matrix::LedState::Off: default: return "off";
-  }
 }
 
 std::string json_escape(const std::string &s) {
@@ -237,11 +215,8 @@ void write_trace(const std::filesystem::path &path, int index, const Scenario &s
     << ", \"height\": " << matrix::TraceCanvas::kHeight << ", \"bg\": "
     << rgb_json(canvas.ops().empty() ? matrix::Rgb{0, 0, 0} : canvas.ops().front().color) << "},\n";
   f << "  \"display_active\": " << (res.display_active ? "true" : "false") << ",\n";
-  f << "  \"status_led\": {\"state\": \"" << led_state_name(res.led) << "\", \"color\": "
-    << rgb_json(res.led_color) << ", \"brightness\": " << res.led_brightness << "},\n";
   f << "  \"pass\": " << (pass ? "true" : "false") << ",\n";
-  f << "  \"expect\": {\"display_active\": " << (sc.expect_active ? "true" : "false")
-    << ", \"led\": \"" << led_state_name(sc.expect_led) << "\"},\n";
+  f << "  \"expect\": {\"display_active\": " << (sc.expect_active ? "true" : "false") << "},\n";
   f << "  \"ops\": [\n";
   const auto &ops = canvas.ops();
   for (size_t i = 0; i < ops.size(); ++i) {
@@ -275,7 +250,7 @@ int main(int argc, char **argv) {
   const auto scenarios = build_scenarios();
 
   int failures = 0;
-  printf("%-28s %-9s %-9s %s\n", "scenario", "display", "led", "result");
+  printf("%-28s %-9s %s\n", "scenario", "display", "result");
   printf("%s\n", std::string(64, '-').c_str());
 
   int index = 0;
@@ -283,7 +258,7 @@ int main(int argc, char **argv) {
     matrix::TraceCanvas canvas;
     const matrix::Result res = matrix::render(canvas, sc.in);
 
-    const bool pass = (res.display_active == sc.expect_active) && (res.led == sc.expect_led);
+    const bool pass = (res.display_active == sc.expect_active);
     if (!pass) ++failures;
 
     char name_buf[64];
@@ -292,11 +267,10 @@ int main(int argc, char **argv) {
                 canvas, res, pass);
 
     char detail[128];
-    snprintf(detail, sizeof(detail), "display=%s led=%s (want display=%s led=%s)",
-             res.display_active ? "on" : "off", led_state_name(res.led),
-             sc.expect_active ? "on" : "off", led_state_name(sc.expect_led));
-    printf("%-28s %-9s %-9s %s\n", sc.name.c_str(), res.display_active ? "on" : "off",
-           led_state_name(res.led), pass ? "PASS" : "FAIL");
+    snprintf(detail, sizeof(detail), "display=%s (want display=%s)",
+             res.display_active ? "on" : "off", sc.expect_active ? "on" : "off");
+    printf("%-28s %-9s %s\n", sc.name.c_str(), res.display_active ? "on" : "off",
+           pass ? "PASS" : "FAIL");
     if (!pass) printf("    %s\n", detail);
 
     ++index;

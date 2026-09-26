@@ -44,13 +44,28 @@ on presence — is wrong for this device: that switch sets `manual_override`, wh
 presence entity onto the device (`binary_sensor: platform: homeassistant`) keeps the
 gate stateless and evaluated every refresh. Use the HA binary sensor, not the switch.
 
-## 3. The onboard status LED is a usable proxy for "display active" (verified 2026-09-26)
+## 3. ~~The onboard status LED is a usable proxy for "display active"~~ — REMOVED, the LED never lit (disproved 2026-09-26)
 
-The device exposes no "display on/off" entity, but the same lambda branch that draws
-the panel also drives the WS2812 heartbeat. So `light.apollomatrix_onboard_status_led
-== on` proves the active branch executed. With `switch.apollomatrix_matrix_toggle == off`
-that means the *automatic* path ran — i.e. in-window **and** occupied. This is how the
-presence gate was verified without eyes on the panel.
+**Original claim (now withdrawn):** the same lambda branch that draws the panel also
+drove a WS2812 on `GPIO3`, so `light.apollomatrix_onboard_status_led == on` was taken as
+proof that the active branch executed — and that is how the presence gate was
+"verified without eyes on the panel".
+
+**Why it was wrong:** the component's *state* was real, but the *hardware* was not.
+Tested directly — a manual override with `number.apollomatrix_matrix_brightness` at
+**1.0** made the panel visibly ~5× brighter while **nothing lit on the board at all**.
+ESPHome happily reported `on, brightness 255, rgb (0,51,255), effect Heartbeat`
+throughout, so an HA state is not evidence that an LED exists.
+
+So there is currently **no remote "is the display lit?" signal**. To confirm the panel
+is displaying you either look at it, or reason from the inputs (in-window + presence, or
+the manual override switch). The `light:` block, its two lambda calls and the
+`status_led_pin` substitution were removed; the code is in git history if the correct
+pin ever turns up (`GPIO3` is a strapping pin on this board, so the pin choice was
+likely assumed rather than schematic-derived).
+
+Process lesson: verify *against the hardware*, not against the firmware's intent. An
+entity reporting `on` says the software did its job; it says nothing about the wire.
 
 ## 4. `esphome compile` reports success when it built nothing (verified 2026-09-26)
 

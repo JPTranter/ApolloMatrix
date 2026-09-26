@@ -41,7 +41,7 @@ alternative blocks in the same file rather than extra files to copy.
 | `panel_width` / `panel_height` | `64` / `64` | Panel size in pixels |
 | `shift_driver` | `FM6126A` | Panel shift-register chip |
 | `bit_depth` | `10` | Colour bit depth |
-| `gate_pin`, `status_led_pin`, `r1_pin` … `oe_pin` | see file | Wiring — change only if you rewired it |
+| `gate_pin`, `r1_pin` … `oe_pin` | see file | Wiring — change only if you rewired it |
 
 Any Home Assistant weather source works (BOM, Met.no, Weather Underground, your own
 station) — it just has to expose those four quantities **in °C**. The colour ramp
@@ -73,7 +73,6 @@ is unchanged — including the manual override still respecting the cutoff.
 |---|---|
 | MCU | ESP32-S3 (esp32-s3-devkitc-1), ESP-IDF framework |
 | Panel | 64×64 HUB75, shift driver `FM6126A`, `STANDARD_TWO_SCAN`, 10-bit depth |
-| Status LED | 1× WS2812 on GPIO3 (`esp32_rmt_led_strip`) |
 | Power gate | GPIO7 (`onboard_power_gate`) |
 
 HUB75 pins: `R1=42 G1=41 B1=40 R2=38 G2=39 B2=37 A=45 B=36 C=48 D=35 E=21 CLK=2 LAT=47 OE=14`.
@@ -84,7 +83,6 @@ HUB75 pins: `R1=42 G1=41 B1=40 R2=38 G2=39 B2=37 A=45 B=36 C=48 D=35 E=21 CLK=2 
 - **Temperature** from `sensor.scoresby_temp`, interpolated white→blue→cyan→green→orange→red across −2 °C … 30 °C.
 - **Trend arrow** ▲/▼ comparing the current temperature against the 30-minute anchor (`temp_30m`), which is rotated by the `update_temp_trend` script every 10 min.
 - **FEELS / HMDTY / DEWPT** lines from the matching Scoresby sensors.
-- **Onboard status LED** pulses with the "Heartbeat" effect, tinted to the current temperature colour.
 
 ### Visibility window
 
@@ -110,7 +108,7 @@ Snapshots from the host harness. To refresh them: `test/run_tests.sh` then
 | ![brightness 1.0](docs/images/device-full-brightness.png) | **Brightness 1.0** — the same frame with `number.apollomatrix_matrix_brightness` at full; every colour is scaled by it |
 | ![trend arrow](docs/images/device-trend-up.png) | **Trend arrow** — temperature above its 30-minute anchor (▲ red; below the anchor, ▼ blue) |
 | ![32 °C](docs/images/device-temp-hot.png) | **Colour ramp** — 32 °C, the red end. The ramp runs white → blue → cyan → green → orange → red across −2 °C … 30 °C |
-| ![panel blanked](docs/images/device-panel-off.png) | **Blanked** — outside 08:00–22:00, room empty, or the presence sensor has no state: the panel clears and the status LED goes out |
+| ![panel blanked](docs/images/device-panel-off.png) | **Blanked** — outside 08:00–22:00, room empty, or the presence sensor has no state: the panel clears |
 | ![crisp pixel grid](docs/images/crisp-normal.png) | **The faithful view** — the same everyday frame as the 64×64 grid the panel actually receives, with no glow or LED styling |
 
 The first five are the `device` style — a presentation render of how the panel
@@ -123,7 +121,6 @@ judge layout, margins and clipping.
 |---|---|---|
 | `number.apollomatrix_matrix_brightness` | number | Matrix brightness 0.1–1.0 (restored) |
 | `switch.apollomatrix_matrix_toggle` | switch | Manual override — force the display on |
-| `light.apollomatrix_onboard_status_led` | light | Onboard WS2812 status LED |
 | `binary_sensor.sonoff_snzb_06p24` | binary_sensor | Room presence gate (from HA) |
 
 There is **no** `update.apollomatrix_firmware` entity and no `update:` platform
@@ -267,6 +264,15 @@ falls back. See `test/fonts/NOTICE.txt` for the licences. The firmware build nev
 reads that directory: ESPHome fetches `gfonts://` itself.
 
 ## Known issues / TODO
+
+- **The onboard status LED was removed (2026-09-26).** The config used to drive a WS2812
+  on `GPIO3` (`esp32_rmt_led_strip`) with a "Heartbeat" pulse, tinted to the temperature.
+  Forcing a manual override with the matrix at full brightness lit the panel but **never
+  lit anything on the board**, so the pin/chipset assumption does not match this
+  hardware (`GPIO3` is a strapping pin here). The `light:` block, its two lambda calls,
+  the `status_led_pin` substitution and the `light.apollomatrix_onboard_status_led`
+  entity are all gone; the code is in git history if the correct pin turns up. There is
+  therefore no remote "is the display lit?" signal — see lesson 3.
 
 - **`sensor.scoresby_cloud_situation` does not exist on HA** (confirmed
   2026-09-26) — the `weather_condition` text sensor never updates and

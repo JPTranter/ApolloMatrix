@@ -129,7 +129,11 @@ with the default):
 |---|---|
 | `number.apollomatrix_matrix_brightness` | Panel brightness, 0.1–1.0. A fresh device starts at 0.5 and remembers whatever you set (the reference unit runs 0.2 — dim, easy on the eyes and the LEDs); 1.0 is much brighter. |
 | `switch.apollomatrix_matrix_toggle` | **Manual override** — forces the display on regardless of the presence sensor. It still blanks at `off_hour`, which is also when the override resets. |
-| `light.apollomatrix_onboard_status_led` | The little WS2812 on the board, pulsing in the current temperature colour. It is switched on only while the panel is actually displaying, so it doubles as a remote "is the display lit?" indicator. |
+
+That is the whole entity list: the config no longer creates an onboard-LED entity (the
+board's status LED never lit on this hardware — see the README's Known issues). To tell
+whether the panel is currently displaying, look at it, or reason from the inputs:
+in-window **and** occupied, or the manual override is on.
 
 ## Step 5 — Confirm it works
 
@@ -152,7 +156,7 @@ with the default):
 | Very dim | `matrix_brightness` — a fresh device starts at 0.5, the reference unit runs at 0.2. Raise it. |
 | A solid block where a character should be | That character is not in the font's baked glyph list (the minus sign was the original offender). Add it to the relevant `glyphs:` entry. See the README's warning about changing text. |
 | Right text, wrong colours | Your entities are probably in °F — the ramp is Celsius. See below. |
-| Panel dark, status LED off, nothing at all | Outside the window; or Home Assistant/time not reachable yet — the device needs HA up to get the clock and the readings. |
+| Panel dark and nothing at all | Outside the window; or Home Assistant/time not reachable yet — the device needs HA up to get the clock and the readings. |
 | Entity "unavailable" in Home Assistant | WiFi or API dropped. Check **Logs** on the device page in the ESPHome dashboard. |
 | Build fails on `channel_colors` | Your ESPHome add-on is older than 2026.8. Update it. |
 | Build fails fetching fonts | The Home Assistant host has no internet access (Google Fonts). Connect it and rebuild. |
