@@ -29,6 +29,11 @@ test/output/
 # `python test/fetch_fonts.py` (see test/fonts/NOTICE.txt).
 test/fonts/*.ttf
 
+# Editor / local tool state. The harness's CMake source dir is documented in the
+# README, so a committed editor config would only carry one machine's preferences.
+# Same rule as ChromaWOTD and GBOGH.
+.vscode/
+
 # OS noise
 .DS_Store
 Thumbs.db
