@@ -37,6 +37,24 @@ gate and the 08:00 start, but still blanks at the cutoff).
 
 At 22:00 the `manual_override` is reset and the matrix blanks.
 
+## What it looks like
+
+Snapshots from the host harness. To refresh them: `test/run_tests.sh` then
+`python test/make_readme_images.py`.
+
+| Render | State |
+|---|---|
+| ![in window, lounge occupied](docs/images/device-normal.png) | **In window, lounge occupied** — the everyday frame at brightness 0.2 |
+| ![brightness 1.0](docs/images/device-full-brightness.png) | **Brightness 1.0** — the same frame with `number.apollomatrix_matrix_brightness` at full; every colour is scaled by it |
+| ![trend arrow](docs/images/device-trend-up.png) | **Trend arrow** — temperature above its 30-minute anchor (▲ red; below the anchor, ▼ blue) |
+| ![32 °C](docs/images/device-temp-hot.png) | **Colour ramp** — 32 °C, the red end. The ramp runs white → blue → cyan → green → orange → red across −2 °C … 30 °C |
+| ![panel blanked](docs/images/device-panel-off.png) | **Blanked** — outside 08:00–22:00, lounge empty, or the presence sensor has no state: the panel clears and the status LED goes out |
+| ![crisp pixel grid](docs/images/crisp-normal.png) | **The faithful view** — the same everyday frame as the 64×64 grid the panel actually receives, with no glow or LED styling |
+
+The first five are the `device` style — a presentation render of how the panel
+*looks*. The last is the `crisp` style — how it *is*; only that one should be used to
+judge layout, margins and clipping.
+
 ## Home Assistant entities
 
 | Entity | Type | Purpose |
