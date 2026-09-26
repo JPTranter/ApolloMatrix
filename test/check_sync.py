@@ -108,19 +108,29 @@ def mirror_checks(subs: dict, harness_text: str, scenarios_text: str) -> list[st
     """
     problems = []
 
+    # A missing key must FAIL, not skip: silently passing here would mean the harness
+    # could be testing a different window from the one the config actually uses.
     start = subs.get("start_hour")
-    m = re.search(r"in\.hour\s*>=\s*(\d+)", harness_text)
-    if not m:
-        problems.append("harness: no `in.hour >= N` to mirror start_hour")
-    elif start is not None and int(m.group(1)) != int(start):
-        problems.append(f"start_hour: YAML default {start} vs test/matrix_logic.h {m.group(1)}")
+    if start is None:
+        problems.append("start_hour: missing from the `substitutions:` block — "
+                        "cannot verify the harness's window start")
+    else:
+        m = re.search(r"in\.hour\s*>=\s*(\d+)", harness_text)
+        if not m:
+            problems.append("harness: no `in.hour >= N` to mirror start_hour")
+        elif int(m.group(1)) != int(start):
+            problems.append(f"start_hour: YAML default {start} vs test/matrix_logic.h {m.group(1)}")
 
     off = subs.get("off_hour")
-    m = re.search(r"in\.off_hour\s*=\s*(\d+)", scenarios_text)
-    if not m:
-        problems.append("scenarios: no `in.off_hour = N` to mirror off_hour")
-    elif off is not None and int(m.group(1)) != int(off):
-        problems.append(f"off_hour: YAML default {off} vs test/main.cpp {m.group(1)}")
+    if off is None:
+        problems.append("off_hour: missing from the `substitutions:` block — "
+                        "cannot verify the harness's cutoff")
+    else:
+        m = re.search(r"in\.off_hour\s*=\s*(\d+)", scenarios_text)
+        if not m:
+            problems.append("scenarios: no `in.off_hour = N` to mirror off_hour")
+        elif int(m.group(1)) != int(off):
+            problems.append(f"off_hour: YAML default {off} vs test/main.cpp {m.group(1)}")
 
     return problems
 

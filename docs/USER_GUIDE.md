@@ -14,8 +14,8 @@ and optional tweaks.
   needs rewiring.
 - A **USB data cable** (not charge-only) for the very first flash.
 - Home Assistant with the **ESPHome (Device Builder) add-on** installed.
-- **ESPHome 2026.8 or newer** in that add-on. Older versions reject the
-  `channel_colors` line in the light config.
+- **ESPHome 2025.12 or newer** in that add-on — that is the release that added the
+  `hub75` display platform this config uses. (Developed and validated on 2026.7.4.)
 - Internet access **on the Home Assistant host** for the first build — ESPHome fetches
   the two fonts from Google Fonts and the `esp-hub75` component.
 - Your WiFi SSID and password, on a **2.4 GHz** network (the ESP32 cannot see 5 GHz).
@@ -63,7 +63,6 @@ substitutions:
   weather_feels_like: sensor.your_apparent_temp
   weather_humidity: sensor.your_humidity
   weather_dew_point: sensor.your_dew_point
-  weather_condition: sensor.your_cloud_condition  # optional, see note
   presence_sensor: binary_sensor.your_room_presence
   timezone: Australia/Melbourne                   # ← your IANA timezone
   start_hour: "8"                                 # window opens  (inclusive)
@@ -75,10 +74,6 @@ substitutions:
 Leave the `panel_*`, `shift_driver`, `bit_depth` and pin entries alone unless you
 rewired the panel.
 
-- **`weather_condition`** — if you have no cloud-condition entity, either point it at
-  something harmless or delete the `weather_condition` text sensor and the
-  `show_weather_timer` script further down the file. The current firmware only feeds
-  them to an unused path, so it makes no visible difference either way.
 - **No presence sensor?** Under `# ── Presence gate ──` further down, delete the
   **Option A** block and uncomment **Option B**. The panel then follows the time window
   alone. See [Time-based only](#time-based-only-no-presence-sensor).
@@ -158,9 +153,9 @@ in-window **and** occupied, or the manual override is on.
 | Right text, wrong colours | Your entities are probably in °F — the ramp is Celsius. See below. |
 | Panel dark and nothing at all | Outside the window; or Home Assistant/time not reachable yet — the device needs HA up to get the clock and the readings. |
 | Entity "unavailable" in Home Assistant | WiFi or API dropped. Check **Logs** on the device page in the ESPHome dashboard. |
-| Build fails on `channel_colors` | Your ESPHome add-on is older than 2026.8. Update it. |
+| Build fails on `platform: hub75` ("Platform not found") | Your ESPHome add-on is older than 2025.12, the release that added the HUB75 platform. Update it. |
 | Build fails fetching fonts | The Home Assistant host has no internet access (Google Fonts). Connect it and rebuild. |
-| `GPIO3/GPIO45 strapping pin` warnings | Normal for this board — informational only. |
+| `GPIO45 strapping pin` warnings | Normal — that pin is part of this board's panel wiring; informational only. |
 
 **Reading logs:** ESPHome dashboard → your device → **Logs**. That is the first place to
 look for anything unexpected.

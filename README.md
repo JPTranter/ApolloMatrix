@@ -31,7 +31,6 @@ alternative blocks in the same file rather than extra files to copy.
 | `weather_feels_like` | `sensor.scoresby_temp_feels_like` | Apparent temperature (°C) |
 | `weather_humidity` | `sensor.scoresby_humidity` | Relative humidity (%) |
 | `weather_dew_point` | `sensor.scoresby_dew_point` | Dew point (°C) |
-| `weather_condition` | `sensor.scoresby_cloud_situation` | Optional — only feeds an unused path; delete the `weather_condition` text_sensor and the `show_weather_timer` script if you have no such entity |
 | `presence_sensor` | `binary_sensor.sonoff_snzb_06p24` | Occupancy sensor for the panel's room. Optional — see *time-based only* below |
 | `timezone` | `Australia/Melbourne` | Drives the clock *and* the visibility window |
 | `start_hour` | `8` | Window opens (inclusive) |
@@ -126,11 +125,6 @@ judge layout, margins and clipping.
 There is **no** `update.apollomatrix_firmware` entity and no `update:` platform
 in the config — OTA updates are triggered from the ESPHome dashboard, not HA.
 
-The `weather_condition` text sensor (`sensor.scoresby_cloud_situation`) feeds the
-`show_weather_timer` script, but that script only sets the `display_active`
-global, which the display lambda never reads — so a weather change does **not**
-actually force the display on (dead code; see Known issues).
-
 ## Requirements
 
 - **ESPHome** with the `hub75` display platform. The `esp-hub75` component
@@ -169,15 +163,16 @@ from a different host.
   fonts — works from here and is a good first check. It needs a `secrets.yaml`;
   run it from a scratch copy with dummy WiFi creds so real ones never enter the
   repo.
-- **Version skew:** the local CLI is *older* (2026.7.4) than the ESPHome addon on
-  the HA server. Options added after 2026.7.4 — e.g. `channel_colors` — fail here
-  with `[channel_colors] is an invalid option for [light.esp32_rmt_led_strip]`
-  while the addon accepts them. Treat a local failure on a *new* option as a
-  version-skew signal, not a config error.
+- **Version skew is real, but nothing in this config triggers it.** The local CLI is
+  ESPHome 2026.7.4 and validates this config cleanly; the add-on on the HA server is
+  at least 2026.8 (it once offered the `channel_colors` migration for the light block,
+  since removed). If you add an option newer than the local CLI, `esphome config` will
+  call it invalid *here* — treat that as version skew, not a config error, and trust
+  the add-on's build.
 - **Do not trust `python -m esphome compile` in this git-bash/MSYS
   environment** — ESP-IDF refuses to build there and ESPHome prints
   `Successfully compiled program` even when no `.elf`/`.bin` is produced.
-  Inspect `.esphome/build/ApolloMatrix/src/main.cpp` for the translated logic,
+  Inspect `.esphome/build/apollomatrix/src/main.cpp` for the translated logic,
   and build on the addon host (details in `docs/lessons/`).
 
 ## Testing (host render harness)
@@ -274,14 +269,12 @@ reads that directory: ESPHome fetches `gfonts://` itself.
   entity are all gone; the code is in git history if the correct pin turns up. There is
   therefore no remote "is the display lit?" signal — see lesson 3.
 
-- **`sensor.scoresby_cloud_situation` does not exist on HA** (confirmed
-  2026-09-26) — the `weather_condition` text sensor never updates and
-  `show_weather_timer` never fires. Harmless because it's dead code (below);
-  remove or repoint it if a cloud-situation entity is ever added.
-- **`display_active` + `show_weather_timer` are dead**: the display lambda never
-  reads `display_active`, so a weather change does not force the display on
-  (a previous version of this README claimed it did for 60 s).
-- **`global_brightness` is declared but unused** — brightness is driven by the
-  `matrix_brightness` number entity instead.
+- **A weather change will not wake the display.** An earlier version of this config had
+  a `weather_condition` text sensor plus a `show_weather_timer` script meant to force
+  the display on for 60 s. It never worked (`display_active` was written but never
+  read), the entity it referenced did not exist on HA, and the whole path has been
+  **removed**, along with the unused `last_weather` and `global_brightness` globals.
+  If weather alerts should wake the screen, that is new behaviour to design — not a
+  bug to fix.
 - **No `update:` platform** — there is no `update.apollomatrix_firmware` HA
   entity; OTA is via the ESPHome dashboard.

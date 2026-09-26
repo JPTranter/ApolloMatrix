@@ -19,7 +19,9 @@ __pycache__/
 venv/
 
 # Host test harness: build artefacts + rendered images (regenerate with
-# test/run_tests.sh); the vendored fonts in test/fonts/ ARE tracked.
+# test/run_tests.sh). test/fonts/ keeps metrics.json, NOTICE.txt and the OFL
+# licence texts tracked; the .ttf files themselves are ignored — see the rule
+# below and test/fonts/NOTICE.txt.
 test/build/
 test/output/
 

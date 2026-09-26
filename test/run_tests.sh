@@ -11,17 +11,34 @@ HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 BUILD="$HERE/build"
 OUT="$HERE/output"
 PY="${PYTHON:-python}"
+CMAKE="${CMAKE:-cmake}"
 
 # cmake / python / the harness binary are NATIVE Windows programs: they do not
 # understand MSYS paths like /c/Users/... . Hand them C:/Users/... instead.
 win() { if command -v cygpath >/dev/null 2>&1; then cygpath -m "$1"; else printf '%s' "$1"; fi; }
 
+# Fail clearly instead of with "cmake: command not found" when the build tools
+# aren't on this shell's PATH.
+if ! command -v "$CMAKE" >/dev/null 2>&1; then
+  echo "error: '$CMAKE' not found on PATH."
+  echo "       Install CMake + Ninja, or point at them explicitly, e.g.:"
+  echo "         CMAKE='/c/Program Files/CMake/bin/cmake.exe' bash test/run_tests.sh"
+  exit 1
+fi
+if [ -n "${NINJA:-}" ] && ! command -v "$NINJA" >/dev/null 2>&1; then
+  echo "error: NINJA='$NINJA' not found on PATH."
+  exit 1
+fi
+
 rc_sync=0
 rc_scen=0
 
 echo "== build =="
-cmake -S "$(win "$HERE")" -B "$(win "$BUILD")" -G Ninja -DCMAKE_BUILD_TYPE=Release >/dev/null || exit 1
-cmake --build "$(win "$BUILD")" || exit 1
+cmake_args=(-G Ninja)
+[ -n "${NINJA:-}" ] && cmake_args+=("-DCMAKE_MAKE_PROGRAM=$(win "$NINJA")")
+"$CMAKE" -S "$(win "$HERE")" -B "$(win "$BUILD")" "${cmake_args[@]}" \
+  -DCMAKE_BUILD_TYPE=Release >/dev/null || exit 1
+"$CMAKE" --build "$(win "$BUILD")" || exit 1
 
 echo
 echo "== logic sync check (test/matrix_logic.h vs ApolloMatrix.yaml) =="

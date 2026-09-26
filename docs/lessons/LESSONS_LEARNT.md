@@ -144,17 +144,25 @@ questions the YAML cannot:
   appears in Home Assistant. Adding it therefore required **no HA change at all**;
   the HA-side entity is only the presence *source* (`binary_sensor.sonoff_snzb_06p24`).
 
-## 10. Two dead paths in this config, confirmed against live HA (verified 2026-09-26)
+## 10. Two dead paths — diagnosed, then REMOVED (verified 2026-09-26)
+
+Originally recorded here as harmless dead code; an external review flagged them and they
+were removed the same day.
 
 - `sensor.scoresby_cloud_situation` **does not exist** on the HA instance (the live
-  Scoresby sensors are temp / feels-like / humidity / dew point / rain / wind). The
-  `weather_condition` text sensor therefore never updates.
-- `display_active` is only ever **written** (by `show_weather_timer`), never read by
-  the lambda — so "a weather change forces the display on for 60 s" was never true.
-  `global_brightness` is likewise declared and unused.
+  Scoresby sensors are temp / feels-like / humidity / dew point / rain / wind), so the
+  `weather_condition` text sensor never updated.
+- `display_active` was only ever **written** (by `show_weather_timer`), never read by the
+  lambda — so "a weather change forces the display on for 60 s" was never true.
+  `global_brightness` was declared and unused; `last_weather` was read only by that path.
 
-Both are harmless now; don't "fix" them into the presence logic without checking what
-the user actually wants.
+All of it is gone from the config — the `weather_condition` substitution and text_sensor,
+`show_weather_timer`, `display_active`, `last_weather`, `global_brightness` — and the
+code lives in git history.
+
+Lesson: dead code that a *user* can see in their config is worth deleting even when it is
+harmless. Removing it also took out the last reference to a non-existent HA entity,
+which the User Guide had to warn users about.
 
 ## 11. Deploy loop for this device (verified 2026-09-26)
 
@@ -215,13 +223,14 @@ Two design consequences worth keeping:
   `test/check_sync.py` exists purely to make drift *detectable* — it asserts ~22
   load-bearing expressions (conditions, formats, coordinates) appear in both files.
   It is a smoke check, not proof; mirror changes by hand.
-- **Frame it as an assertion runner, not just a renderer.** Each scenario declares
-  the expected `display_active`/LED state, so a regression in the gate fails the run
-  (non-zero exit) instead of silently producing a wrong picture.
+- **Frame it as an assertion runner, not just a renderer.** Each scenario declares the
+  expected display state, so a regression in the gate fails the run (non-zero exit)
+  instead of silently producing a wrong picture.
 
-Because the harness cannot execute the firmware, it also cannot catch things the
-device does with the LED object (effects, restore state) — it models the LED as
-`on`/`off`/`unchanged` only.
+Because the harness cannot execute the firmware, it models only what the lambda
+*decides* — the draw ops and whether the display is active. It cannot exercise ESPHome
+components, and it no longer models the onboard LED at all, since that block was
+removed (lesson 3).
 
 ## 15. ESPHome's `TextAlign::CENTER` centres VERTICALLY as well (verified 2026-09-26)
 
@@ -604,3 +613,25 @@ Gotcha found while writing `--via-esphome`: the throwaway `secrets.yaml` needs a
 password of **at least 8 characters**. With a shorter dummy, ESPHome fails validation
 *before* downloading the fonts, so the fetch silently finds nothing and reports no
 cache — the symptom is "esphome did not produce a font cache", not a secrets error.
+
+## 25. The HUB75 power gate stays on — documented, not changed (2026-09-26)
+
+`onboard_power_gate` (GPIO7) is switched on once in `esphome.on_boot` and never switched
+off, so it stays powered while the panel is blanked. Blanking is done by drawing black
+frames, not by cutting power. An external review raised this as a power/thermal note and
+recommended documenting the reasoning rather than changing it.
+
+Why it is left alone: the ESPHome `hub75` driver runs a **continuous DMA refresh chain**
+— that is how it refreshes without CPU intervention — and that chain expects a powered
+panel; the gate is what brings the panel up before the chain starts. Gating power on
+presence/window transitions would power-cycle the panel every time the room empties, for
+no functional gain.
+
+Stated as caveats, because they are inferences, not measurements:
+
+- **Not empirically verified.** Powering the gate off has never been tried on this
+  hardware. "The driver needs it" follows from how the driver works, not from a test.
+- **The blanked draw is not measured.** While blanked the panel still receives a full
+  black frame clocked at the refresh rate and the ESP32 keeps running, so the device
+  draws *something* continuously whenever it is plugged in. If that matters, the honest
+  next step is to measure it — not to assume the gate can be cycled safely.

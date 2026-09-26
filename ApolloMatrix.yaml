@@ -10,10 +10,6 @@ substitutions:
   weather_feels_like: sensor.scoresby_temp_feels_like
   weather_humidity: sensor.scoresby_humidity
   weather_dew_point: sensor.scoresby_dew_point
-  # Optional. The firmware currently feeds this only to an unused path, so either
-  # point it at something or delete the `weather_condition` text_sensor and the
-  # `show_weather_timer` script (see Known issues in the README).
-  weather_condition: sensor.scoresby_cloud_situation
 
   # ── Your room's presence sensor (optional) ──────────────────────────────────
   # The panel only lights while this reports occupied. No sensor? See the
@@ -135,12 +131,6 @@ sensor:
     entity_id: ${weather_feels_like}
 
 globals:
-  - id: display_active
-    type: bool
-    initial_value: 'true'
-  - id: last_weather
-    type: std::string
-    initial_value: '""'
   - id: temp_10m
     type: float
     initial_value: '22.0'
@@ -150,10 +140,6 @@ globals:
   - id: temp_30m
     type: float
     initial_value: '22.0'
-  - id: global_brightness
-    type: float
-    restore_value: yes
-    initial_value: '0.5'
   - id: manual_override
     type: bool
     restore_value: no
@@ -193,18 +179,6 @@ switch:
       - component.update: my_display
 
 script:
-  - id: show_weather_timer
-    mode: restart
-    then:
-      - globals.set:
-          id: display_active
-          value: 'true'
-      - component.update: my_display
-      - delay: 60s
-      - globals.set:
-          id: display_active
-          value: 'false'
-      - component.update: my_display
   - id: update_temp_trend
     mode: restart
     then:
@@ -223,22 +197,6 @@ script:
                 id: temp_10m
                 value: !lambda 'return id(current_temp).state;'
             - logger.log: "Trend Shifted: 30m anchor updated."
-
-text_sensor:
-  - platform: homeassistant
-    id: weather_condition
-    entity_id: ${weather_condition}
-    on_value:
-      then:
-        - if:
-            condition:
-              lambda: 'return x != id(last_weather);'
-            then:
-              - globals.set:
-                  id: last_weather
-                  value: !lambda 'return x;'
-              - script.execute: show_weather_timer
-              - component.update: my_display
 
 time:
   - platform: homeassistant
