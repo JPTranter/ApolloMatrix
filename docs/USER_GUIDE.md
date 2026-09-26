@@ -39,7 +39,7 @@ ramp and the trend maths are Celsius; if your entities are in °F, see
 ## Step 1 — Put the file on the ESPHome add-on
 
 1. Open the **ESPHome dashboard**. Its config directory is `/config/esphome/`.
-2. Copy `apollomatrix.yaml` from this project into that directory — drag it into the
+2. Copy `ApolloMatrix.yaml` from this project into that directory — drag it into the
    file editor, or use the Samba / File editor / SSH add-on. **It is the only file
    this project needs.**
 3. Make sure `/config/esphome/secrets.yaml` exists and holds your WiFi credentials:
@@ -54,7 +54,7 @@ ramp and the trend maths are Celsius; if your entities are in °F, see
 
 ## Step 2 — Edit the substitutions block
 
-Open `apollomatrix.yaml` in the ESPHome editor. Everything you need to change is in the
+Open `ApolloMatrix.yaml` in the ESPHome editor. Everything you need to change is in the
 block at the very top:
 
 ```yaml

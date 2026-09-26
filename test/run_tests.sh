@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# apollomatrix host test harness: build -> sync check -> scenarios -> PNGs.
+# ApolloMatrix host test harness: build -> sync check -> scenarios -> PNGs.
 #
 # This runs entirely on the PC. It does NOT build or flash firmware: the ESPHome
 # firmware is built on the HA server's ESPHome addon (see README).
@@ -24,7 +24,7 @@ cmake -S "$(win "$HERE")" -B "$(win "$BUILD")" -G Ninja -DCMAKE_BUILD_TYPE=Relea
 cmake --build "$(win "$BUILD")" || exit 1
 
 echo
-echo "== logic sync check (test/matrix_logic.h vs apollomatrix.yaml) =="
+echo "== logic sync check (test/matrix_logic.h vs ApolloMatrix.yaml) =="
 "$PY" "$(win "$HERE/check_sync.py")" "$(win "$HERE/..")" || rc_sync=$?
 
 echo
@@ -56,7 +56,7 @@ echo
 echo "images: $OUT/images    (crisp_* = faithful, device_* = LED look)"
 
 if [ "$rc_sync" -ne 0 ]; then
-  echo "RESULT: FAILED - logic drift between apollomatrix.yaml and the harness"
+  echo "RESULT: FAILED - logic drift between ApolloMatrix.yaml and the harness"
   exit 1
 fi
 if [ "$rc_scen" -ne 0 ]; then

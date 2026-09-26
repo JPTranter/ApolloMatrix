@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Drift guard: the YAML lambda and the host harness copy must stay in step.
 
-test/matrix_logic.h is a COPY of the display lambda in apollomatrix.yaml (the YAML
+test/matrix_logic.h is a COPY of the display lambda in ApolloMatrix.yaml (the YAML
 is authoritative for the device). Nothing can make a copy self-updating, so this
 script asserts that a set of load-bearing expressions - the gating conditions, the
 trend thresholds, the text formats and the layout anchors - still appear in BOTH
@@ -33,7 +33,7 @@ def lambda_block(yaml_text: str) -> str:
     """The display lambda body (the part that must match the harness)."""
     m = re.search(r"^    lambda:\s*\|-\n(.*)$", yaml_text, re.M | re.S)
     if not m:
-        raise SystemExit("could not locate the display lambda in apollomatrix.yaml")
+        raise SystemExit("could not locate the display lambda in ApolloMatrix.yaml")
     return m.group(1)
 
 
@@ -127,7 +127,7 @@ def mirror_checks(subs: dict, harness_text: str, scenarios_text: str) -> list[st
 
 def main() -> int:
     root = Path(sys.argv[1] if len(sys.argv) > 1 else Path(__file__).resolve().parent.parent)
-    yaml_text = (root / "apollomatrix.yaml").read_text(encoding="utf-8")
+    yaml_text = (root / "ApolloMatrix.yaml").read_text(encoding="utf-8")
     harness_text = (root / "test" / "matrix_logic.h").read_text(encoding="utf-8")
     scenarios_text = (root / "test" / "main.cpp").read_text(encoding="utf-8")
 
@@ -147,14 +147,14 @@ def main() -> int:
 
     subs = parse_substitutions(yaml_text)
     if not subs:
-        problems.append("no `substitutions:` block found in apollomatrix.yaml")
+        problems.append("no `substitutions:` block found in ApolloMatrix.yaml")
     problems += mirror_checks(subs, harness_text, scenarios_text)
 
     if problems:
         print("LOGIC SYNC: DRIFT DETECTED")
         for p in problems:
             print(f"  - {p}")
-        print("\nUpdate test/matrix_logic.h to mirror apollomatrix.yaml (or vice versa),")
+        print("\nUpdate test/matrix_logic.h to mirror ApolloMatrix.yaml (or vice versa),")
         print("then re-run test/run_tests.sh.")
         return 1
 

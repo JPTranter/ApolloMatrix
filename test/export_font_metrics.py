@@ -2,7 +2,7 @@
 """Export ESPHome's exact font metrics + glyph bitmaps for the render harness.
 
 Runs ESPHome's OWN glyph generation code (`esphome.components.font`,
-FreeType-backed) over the `font:` blocks in apollomatrix.yaml, so the fixtures are
+FreeType-backed) over the `font:` blocks in ApolloMatrix.yaml, so the fixtures are
 what the device firmware actually contains - coverage quantised to `bpp` bits,
 FreeType's advances/offsets, and the same font-level metrics the `Font(...)`
 constructor receives.
@@ -26,7 +26,7 @@ import sys
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parent.parent
-YAML = REPO / "apollomatrix.yaml"
+YAML = REPO / "ApolloMatrix.yaml"
 OUT = Path(__file__).resolve().parent / "fonts" / "metrics.json"
 
 # Trace font names ("small"/"large", see test/matrix_logic.h Font enum) -> YAML font id
@@ -34,10 +34,10 @@ FONT_ID_FOR_TRACE_NAME = {"small": "weather_font", "large": "weather_font_l"}
 
 
 def parse_yaml_fonts(text: str) -> list[dict]:
-    """Pull the two / three font: entries out of apollomatrix.yaml."""
+    """Pull the two / three font: entries out of ApolloMatrix.yaml."""
     m = re.search(r"^font:\n(.*?)(?=^\S)", text, re.M | re.S)
     if not m:
-        raise SystemExit("no font: block found in apollomatrix.yaml")
+        raise SystemExit("no font: block found in ApolloMatrix.yaml")
     fonts, cur = [], None
     for line in m.group(1).splitlines():
         mm = re.match(r"\s*-\s*file:\s*['\"]?(.*?)['\"]?\s*$", line)

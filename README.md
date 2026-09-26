@@ -1,4 +1,4 @@
-# apollomatrix
+# ApolloMatrix
 
 ESPHome configuration for an **Apollo Automation M-1** 64×64 HUB75 LED matrix
 panel driven by an **ESP32-S3** (DevKitC-1). The panel shows the date/time and
@@ -19,7 +19,7 @@ Bureau-of-Meteorology station in Scoresby, Melbourne) — see
 ## Configuration
 
 Everything you need to change is in the **`substitutions:`** block at the top of
-`apollomatrix.yaml`. The rest of the file is the engine and reads it via `${...}`.
+`ApolloMatrix.yaml`. The rest of the file is the engine and reads it via `${...}`.
 
 It is deliberately a **single self-contained file** — the only YAML you copy to the
 ESPHome addon. Optional features (like time-based-only operation) appear as commented
@@ -61,7 +61,7 @@ Two things to know before you change any *text*:
 
 ### Time-based only (no presence sensor)
 
-In `apollomatrix.yaml`, delete the active **Option A** block under
+In `ApolloMatrix.yaml`, delete the active **Option A** block under
 `# ── Presence gate ──` and uncomment **Option B** immediately below it. Option B is a
 `template` sensor that reports permanently occupied, so the visibility window alone
 decides when the panel is lit and you need no presence entity at all. Everything else
@@ -147,16 +147,16 @@ flash must be over USB, which this section does not cover.
 Firmware is built and pushed from the **ESPHome addon on the Home Assistant
 server**, not from this repo's machine.
 
-1. Edit the `substitutions:` block at the top of `apollomatrix.yaml` — your weather
+1. Edit the `substitutions:` block at the top of `ApolloMatrix.yaml` — your weather
    entities, presence entity, timezone and window (see
    [Configuration](#configuration)).
-2. Copy `apollomatrix.yaml` into the addon's config dir on the HA host, e.g.
-   `/config/esphome/apollomatrix.yaml`. The addon already has `secrets.yaml` with the
+2. Copy `ApolloMatrix.yaml` into the addon's config dir on the HA host, e.g.
+   `/config/esphome/ApolloMatrix.yaml`. The addon already has `secrets.yaml` with the
    WiFi credentials (`!secret wifi_ssid` / `!secret wifi_password`); this repo's
    `secrets.yaml` is deliberately absent (git-ignored).
    ⚠️ Copy the file from disk — don't paste it through chat: runs of 10+ digits get
    redacted to `[PHONE]`, which corrupts the font `glyphs` lines.
-3. In the ESPHome dashboard: select **apollomatrix** → ⋮ → **Install** →
+3. In the ESPHome dashboard: select **ApolloMatrix** → ⋮ → **Install** →
    **Wirelessly** (OTA). The addon compiles (fetches the two Google fonts, resolves
    `esp-hub75`) and flashes over Wi-Fi.
 
@@ -165,7 +165,7 @@ from a different host.
 
 ### Local validation (this repo)
 
-- `python -m esphome config apollomatrix.yaml` validates schema and fetches the
+- `python -m esphome config ApolloMatrix.yaml` validates schema and fetches the
   fonts — works from here and is a good first check. It needs a `secrets.yaml`;
   run it from a scratch copy with dummy WiFi creds so real ones never enter the
   repo.
@@ -177,7 +177,7 @@ from a different host.
 - **Do not trust `python -m esphome compile` in this git-bash/MSYS
   environment** — ESP-IDF refuses to build there and ESPHome prints
   `Successfully compiled program` even when no `.elf`/`.bin` is produced.
-  Inspect `.esphome/build/apollomatrix/src/main.cpp` for the translated logic,
+  Inspect `.esphome/build/ApolloMatrix/src/main.cpp` for the translated logic,
   and build on the addon host (details in `docs/lessons/`).
 
 ## Testing (host render harness)
@@ -195,7 +195,7 @@ Four steps:
    logic in `test/matrix_logic.h`.
 2. **Logic sync check** (`test/check_sync.py`) — asserts the load-bearing
    expressions (gating conditions, trend thresholds, text formats, layout anchors)
-   still match between `apollomatrix.yaml` and `test/matrix_logic.h`.
+   still match between `ApolloMatrix.yaml` and `test/matrix_logic.h`.
 3. **Font fixtures check** (`test/export_font_metrics.py --check`) — asserts
    `test/fonts/metrics.json` still matches the YAML `font:` blocks (glyph set, size,
    bpp), so the render cannot silently keep using a stale font.
@@ -246,7 +246,7 @@ how bright they are, and the renderer thresholds coverage the same way. An unkno
 codepoint would draw `Font::print()`'s placeholder rectangle; the renderer models
 that too, but the glyph sets no longer need it.
 
-**`test/matrix_logic.h` is a copy** of the YAML lambda — `apollomatrix.yaml` stays
+**`test/matrix_logic.h` is a copy** of the YAML lambda — `ApolloMatrix.yaml` stays
 the source of truth for the device. Changes must be mirrored in both; the sync
 check catches most drift.
 

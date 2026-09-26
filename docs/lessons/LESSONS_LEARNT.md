@@ -1,7 +1,7 @@
-# apollomatrix — Lessons Learnt
+# ApolloMatrix — Lessons Learnt
 
 Hardware: **Apollo Automation M-1**, 64×64 HUB75 panel, ESP32-S3 (DevKitC-1), ESP-IDF.
-Repo: `C:/Users/jptra/Projects/apollomatrix`.
+Repo: `C:/Users/jptra/Projects/ApolloMatrix`.
 
 Convention (inherited from eClock/ChromaWOTD): entries marked **verified <date>**
 were confirmed against this repo, the generated build output, or live Home
@@ -161,10 +161,10 @@ the user actually wants.
 The repo is the source of truth, but the **build host is the ESPHome addon on the HA
 server** (config dir `/config/esphome/`, which already holds the real `secrets.yaml`).
 
-1. Copy `apollomatrix.yaml` from the repo into the addon's config dir on the HA host
+1. Copy `ApolloMatrix.yaml` from the repo into the addon's config dir on the HA host
    (dashboard file editor, Samba, or SCP). Copy the **file**, don't paste text —
    see lesson 7.
-2. ESPHome dashboard → apollomatrix → ⋮ → Install → **Wirelessly** (OTA). The addon
+2. ESPHome dashboard → ApolloMatrix → ⋮ → Install → **Wirelessly** (OTA). The addon
    compiles and flashes over Wi-Fi; no serial needed.
 3. HA's ESPHome integration reconnects on its own — no HA restart, and the firmware
    change added no entity to HA (lesson 9).
@@ -211,7 +211,7 @@ Entry point: `test/run_tests.sh`.
 Two design consequences worth keeping:
 
 - **The logic is a deliberate copy.** The user chose "device untouched, zero risk"
-  over a shared header, so `apollomatrix.yaml` stays authoritative and
+  over a shared header, so `ApolloMatrix.yaml` stays authoritative and
   `test/check_sync.py` exists purely to make drift *detectable* — it asserts ~22
   load-bearing expressions (conditions, formats, coordinates) appear in both files.
   It is a smoke check, not proof; mirror changes by hand.
@@ -502,7 +502,7 @@ Design decisions taken — keep them unless asked to change:
 ## 23. The configuration surface is one substitutions block (verified 2026-09-26)
 
 Everything a user must change now lives in a single documented `substitutions:` block
-at the top of `apollomatrix.yaml` (30 keys): the four HA weather entities, the optional
+at the top of `ApolloMatrix.yaml` (30 keys): the four HA weather entities, the optional
 condition entity, the presence entity, timezone, the window (`start_hour`/`off_hour`),
 device name, panel geometry, shift driver, bit depth and all 16 pins. The rest of the
 file is the engine and reads them as `${...}`.
@@ -560,7 +560,7 @@ Follow-up changes (same day), all user-requested:
 - **`device_friendly_name: ApolloMatrix`.** ESPHome's `name` must be a hostname
   (lowercase letters/digits/dashes only), so `ApolloMatrix` is invalid there and goes in
   `friendly_name` — which is what Home Assistant shows. The hostname stays
-  `apollomatrix`.
+  `ApolloMatrix`.
 - **Documentation split into three docs with distinct jobs.**
   `README.md` = project reference (configuration table, hardware, renders, harness);
   `docs/USER_GUIDE.md` = the deployment walkthrough for someone who has just bought the

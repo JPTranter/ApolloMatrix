@@ -1,10 +1,10 @@
 // test/matrix_logic.h
 //
-// Host-side PORT of the display lambda in ../apollomatrix.yaml.
+// Host-side PORT of the display lambda in ../ApolloMatrix.yaml.
 //
 // SYNC CONTRACT
 // -------------
-// ../apollomatrix.yaml is the source of truth for device behaviour. This file is
+// ../ApolloMatrix.yaml is the source of truth for device behaviour. This file is
 // a COPY of its display lambda so the gating + drawing logic can be compiled and
 // rendered on a PC without the ESP-IDF toolchain (which does not build here).
 // A copy can drift.
@@ -44,7 +44,7 @@ struct Rgb {
   uint8_t r, g, b;
 };
 
-// font: entries in apollomatrix.yaml
+// font: entries in ApolloMatrix.yaml
 //   weather_font   = Silkscreen 8px  -> Font::Small
 //   weather_font_l = Roboto 14px     -> Font::Large
 enum class Font { Small, Large };
@@ -119,7 +119,7 @@ Result render(Canvas &it, const Inputs &in) {
   const float bri = in.brightness;
   const int off_h = in.off_hour;
 
-  // the 8 mirrors `start_hour` in apollomatrix.yaml; check_sync.py asserts they agree
+  // the 8 mirrors `start_hour` in ApolloMatrix.yaml; check_sync.py asserts they agree
   const bool in_window = (in.hour >= 8 && in.hour < off_h);
   const bool room_present = in.presence_sensor_has_state && in.presence_present;
   const bool auto_on = (in_window && room_present);

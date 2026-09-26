@@ -1,6 +1,6 @@
 // test/main.cpp
 //
-// Scenario runner for the apollomatrix display logic.
+// Scenario runner for the ApolloMatrix display logic.
 //
 // For each scenario it runs matrix::render() (the host-side port of the ESPHome
 // display lambda) through a TraceCanvas, ASSERTS the gating result, and writes a
@@ -44,7 +44,7 @@ matrix::Inputs base() {
 
   in.manual_override = false;
   in.brightness = 0.2f;
-  in.off_hour = 22;          // mirrors `off_hour` in apollomatrix.yaml (checked by check_sync.py)
+  in.off_hour = 22;          // mirrors `off_hour` in ApolloMatrix.yaml (checked by check_sync.py)
 
   in.temp_valid = true;
   in.temp = 11.4f;

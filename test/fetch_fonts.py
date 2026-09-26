@@ -90,13 +90,13 @@ def copy_from_cache(cache: Path) -> int:
 
 def run_esphome() -> int:
     """Build a throwaway ESPHome cache, copy the fonts into place, clean up after."""
-    tmp = Path(tempfile.mkdtemp(prefix="apollomatrix-fonts-"))
+    tmp = Path(tempfile.mkdtemp(prefix="ApolloMatrix-fonts-"))
     try:
-        shutil.copy2(REPO / "apollomatrix.yaml", tmp / "apollomatrix.yaml")
+        shutil.copy2(REPO / "ApolloMatrix.yaml", tmp / "ApolloMatrix.yaml")
         (tmp / "secrets.yaml").write_text(DUMMY_SECRETS, encoding="utf-8")
         print(f"  running `esphome config` in {tmp} to fetch the fonts ...")
         proc = subprocess.run(
-            [sys.executable, "-m", "esphome", "config", "apollomatrix.yaml"],
+            [sys.executable, "-m", "esphome", "config", "ApolloMatrix.yaml"],
             cwd=tmp, capture_output=True, text=True,
         )
         cache = tmp / ".esphome" / "font"

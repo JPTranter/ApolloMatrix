@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Rasterize apollomatrix draw-op traces into PNGs that simulate the 64x64 panel.
+"""Rasterize ApolloMatrix draw-op traces into PNGs that simulate the 64x64 panel.
 
 FAITHFUL, not flattering: text is drawn glyph-by-glyph from `fonts/metrics.json`,
 which is ESPHome's own font output (FreeType advances/offsets + `bpp`-bit coverage
@@ -313,7 +313,7 @@ def build_contact_sheet(items: list[tuple[dict, Image.Image]],
 def main() -> int:
     import argparse
 
-    ap = argparse.ArgumentParser(description="Rasterize apollomatrix draw-op traces to PNG")
+    ap = argparse.ArgumentParser(description="Rasterize ApolloMatrix draw-op traces to PNG")
     ap.add_argument("traces_dir", nargs="?", default="output/traces")
     ap.add_argument("out_dir", nargs="?", default=None)
     ap.add_argument("--style", choices=("crisp", "device"), default="crisp",

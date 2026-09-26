@@ -9,7 +9,7 @@ committed here: they are third-party font software. Fetch them when you need the
     python test/fetch_fonts.py                 # copy from a local ESPHome cache
 
 Nothing in the firmware path reads this directory. The `font:` block in
-apollomatrix.yaml uses `gfonts://Silkscreen` and `gfonts://Roboto`, and ESPHome
+ApolloMatrix.yaml uses `gfonts://Silkscreen` and `gfonts://Roboto`, and ESPHome
 downloads them on the build host. The copies here are only read by:
 
   * test/rasterize.py            — the caption chrome around each render
