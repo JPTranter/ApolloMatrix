@@ -678,3 +678,30 @@ full-resolution source of `docs/images/device-photo.jpg` had been left behind in
 (2164×2884, mean absolute difference 1.9 per channel against the LANCZOS downscale),
 so the repo did not need it; it now lives outside the repo and only the 1200 px,
 metadata-free derivative is tracked.
+
+---
+
+## 27. CI that has never run is not evidence — and a harness has Python deps (verified 2026-09-26)
+
+The repo had no git remote until it was published, so the CI workflow had never
+executed once. The first push found a break that had been sitting in the tree since
+the device-style renderer was added: `test/rasterize.py`'s `device_look()` does
+`import numpy as np`, and the workflow installed only `pillow`. The job died on its
+**last** step, after the build, the sync check, the font check, the docs check, the
+20 scenarios and the crisp render had all passed — the most expensive possible place
+to learn about a missing module.
+
+Two consequences worth keeping:
+
+- **`.`github/workflows/ci.yml` is not verified until it has run.** A workflow file in
+  a repo with no remote is a plan, not a check. Publishing is when it becomes real, and
+  the first run should be watched to completion rather than assumed.
+- **State the harness's dependencies where they are enforced.** They were implicit in
+  a single `pip install` line, so nothing failed until the one code path that needed
+  numpy ran. `run_tests.sh` now imports `PIL` and `numpy` up front and names whichever
+  is missing, instead of surfacing it as a traceback at the end of the run.
+
+Current dependency set for the whole suite: `pillow` (rasterizing, image-metadata
+scanning), `numpy` (device-style LED/glow maths) — plus `cmake` + `ninja` and a host
+C++ compiler for the harness binary. CI installs them in its `harness` job; the local
+preflight in `run_tests.sh` tells you before it starts.
