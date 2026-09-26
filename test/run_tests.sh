@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# ApolloMatrix host test harness: build -> sync check -> scenarios -> PNGs.
+# ApolloMatrix host test harness: privacy -> build -> sync checks -> scenarios -> PNGs.
 #
 # This runs entirely on the PC. It does NOT build or flash firmware: the ESPHome
 # firmware is built on the HA server's ESPHome addon (see README).
@@ -30,9 +30,17 @@ if [ -n "${NINJA:-}" ] && ! command -v "$NINJA" >/dev/null 2>&1; then
   exit 1
 fi
 
+rc_priv=0
 rc_sync=0
 rc_scen=0
 
+# Privacy first: it needs no build, and it is the one gate that also looks at files
+# that are not tracked yet - i.e. at the thing we are about to commit. Failing here
+# costs nothing; failing after the build wastes it.
+echo "== privacy (secrets, home paths, image metadata - tracked + untracked) =="
+"$PY" "$(win "$HERE/check_privacy.py")" "$(win "$HERE/..")" || rc_priv=$?
+
+echo
 echo "== build =="
 cmake_args=(-G Ninja)
 [ -n "${NINJA:-}" ] && cmake_args+=("-DCMAKE_MAKE_PROGRAM=$(win "$NINJA")")
@@ -76,6 +84,10 @@ echo "== rasterize (device: LED look) =="
 echo
 echo "images: $OUT/images    (crisp_* = faithful, device_* = LED look)"
 
+if [ "$rc_priv" -ne 0 ]; then
+  echo "RESULT: FAILED - secrets, personal data or image metadata present in the repo"
+  exit 1
+fi
 if [ "$rc_sync" -ne 0 ]; then
   echo "RESULT: FAILED - logic drift between ApolloMatrix.yaml and the harness"
   exit 1

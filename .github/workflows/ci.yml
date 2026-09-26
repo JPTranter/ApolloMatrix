@@ -49,10 +49,11 @@ jobs:
       - name: Install Python deps
         run: pip install pillow
 
-      # One command: builds the harness, checks that test/matrix_logic.h still
-      # mirrors the display lambda in ApolloMatrix.yaml, checks the glyph
-      # fixtures, checks the docs' links, runs the 20 scenarios and renders both
-      # image styles.
+      # One command: scans for secrets and personal data in tracked AND untracked
+      # files (including image metadata), builds the harness, checks that
+      # test/matrix_logic.h still mirrors the display lambda in ApolloMatrix.yaml,
+      # checks the glyph fixtures, checks the docs' links, runs the 20 scenarios and
+      # renders both image styles.
       #
       # The preview fonts are deliberately NOT in the repo, so the caption font
       # falls back here: the run prints a note and still passes. That is the
