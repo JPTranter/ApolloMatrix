@@ -58,8 +58,13 @@ matrix::Inputs base() {
   in.dew_valid = true;
   in.dew = 11.2f;
 
-  // 15000 ms -> drift phase pi/2 -> dx=+2, dy=0 (deterministic on purpose)
-  in.millis = 15000;
+  // Drift phase. The lambda runs on `update_interval: 10s`, so within its 60 s
+  // cycle the phase is only SAMPLED at millis % 60000 = 0/10/20/30/40/50 k, which
+  // yields the reachable offsets (-1,-1) (-1,1) (0,-2) (0,2) (1,-1) (1,1) -
+  // i.e. dx is only ever -1/0/+1 (dx=+2 needs sin(phase) >= 1.0 exactly).
+  // 10000 ms -> dx=+1, dy=+1 is the worst realistic case for the RIGHT edge,
+  // so the baseline deliberately uses it.
+  in.millis = 10000;
   return in;
 }
 
