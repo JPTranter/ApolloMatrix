@@ -280,12 +280,14 @@ rasterizer's own TTF metrics instead of ESPHome's glyph advances. Scenario drift
 phases now use the reachable set, with the baseline pinned at `millis = 10000`
 (`dx=+1`, `dy=+1`) — the worst realistic case for the right edge.
 
-**Bonus latent bug found the same way:** `-` (U+002D) is *not* in the Roboto glyph
+**Bonus latent bug found the same way:** `-` (U+002D) was *not* in the Roboto glyph
 set (`glyphs: '[PHONE].C°'`), while `%.1f` formats a minus for sub-zero
 temperatures. `Font::print()` draws an **unknown glyph as a filled rectangle**
-(width = `glyphs_[0].advance`, height = the font height), so a `-5.4°C` reading would
-put a solid block where the minus belongs. Fix by adding `-` to that font's glyphs.
-The small font already has `-`; only the large (temperature) font is missing it.
+(width = `glyphs_[0].advance`, height = the font height), so a `-5.4°C` reading put a
+solid block where the minus belongs. **Fixed 2026-09-26**: `-` added to
+`weather_font_l`'s glyphs (13 → 14 glyphs), fixtures re-exported, and the scenario
+renamed `temp_negative` (it now renders a real minus). The small font already had
+`-`; only the large (temperature) font was missing it.
 
 ## 18. Rendering text faithfully means driving ESPHome's own font generator (verified 2026-09-26)
 
@@ -315,9 +317,10 @@ Rendering rules to mirror (all in `Display::get_text_bounds` / `Font::measure` /
   `x + offset_x` over the glyphs)
 - `x1 = x - (width + x_offset)/2`, `y1 = y - height/2`
 - pen starts **at x1** (not x1 - min_x); ink at `(pen + offset_x, y1 + offset_y)`
-- coverage 0 → draw nothing; `== bpp_max` → the text colour; otherwise
-  `(uint8_t)(colour * coverage/bpp_max)` blended against `COLOR_OFF = (0,0,0)` — the
-  device's antialiasing, at its own bit depth
+- coverage 0 → the firmware draws nothing; otherwise it computes
+  `(uint8_t)(colour * coverage/bpp_max)` blended against `COLOR_OFF = (0,0,0)`.
+  **The panel shows none of that dimming** — every inked pixel renders full on, so
+  the renderer draws any `coverage > 0` at the full colour (lesson 19)
 - unknown codepoint → a filled rectangle `first_glyph.advance` wide and
   `font.height` tall, in the text colour
 
@@ -325,34 +328,76 @@ A `--check` mode compares the committed fixtures against the YAML `font:` blocks
 (glyph set, size, bpp) without needing FreeType, so `run_tests.sh` fails loudly if
 the glyphs change but the fixtures were not re-exported.
 
-## 19. Antialiasing is per-font and lives in the glyph bitmaps (verified 2026-09-26)
+## 19. The panel does NOT antialias — coverage is thresholded to on (verified 2026-09-26)
 
-`bpp:` sets the glyph coverage depth (2 bits = 4 levels). `Font::print()` unpacks
-each pixel and blends partial coverage:
+**This lesson replaces an earlier, wrong version of itself.** Reading the firmware
+only — `bpp: 2` glyph bitmaps plus `Font::print()`'s blending:
 
 ```cpp
-on = pixel / bpp_max;
-blended = (uint8_t)(colour * on + background * (1 - on));   // truncated
+on = pixel / bpp_max;                                        // bpp_max = 3
+blended = (uint8_t)(colour * on + background * (1 - on));    // background = COLOR_OFF = (0,0,0)
 ```
 
-The lambda's `printf(x, y, font, colour, align, fmt, ...)` overload passes
-`background = COLOR_OFF`, and `COLOR_OFF` is `Color(0, 0, 0, 0)`
-(`display.h:300`). So a partial pixel is the text colour **dimmed by its coverage** -
-antialiasing against black, correct for a panel that clears to black each frame.
+— it was concluded that the Roboto temperature is antialiased at 4 levels. **The
+panel does not show that.** The blending exists in the firmware, but none of it
+reaches the LEDs.
 
-Whether it does anything depends entirely on the generated bitmaps, and the two fonts
-here differ completely:
+Measured from a photo of the device, LED by LED (method in lesson 20), for the
+temperature line at `bri = 0.2` — the firmware hands the driver blue values of 17
+(1/3), 34 (2/3) and 51 (full):
 
-| font | glyphs with partial pixels | inked pixels that are partial |
-|---|---|---|
-| Silkscreen 8 (the four small lines) | 0 / 32 | **0 %** (values are only 0 or 3) |
-| Roboto 14 (the temperature) | 13 / 13 | **44 %** (levels 1-2) |
+| | median LED brightness |
+|---|---|
+| background (coverage 0) | 66 |
+| coverage 1 | **146** |
+| coverage 2 | **146** |
+| coverage 3 (full) | **146** |
 
-So the big temperature number is antialiased at 4 levels, and the small lines are
-hard-edged. That is expected: Silkscreen is a pixel font rendered at its native size,
-where FreeType's coverage lands on 0 % or 100 % anyway. Raising `bpp: 4` (16 levels)
-would sharpen only the Roboto text, at a flash cost.
+The ink brightness histogram across the whole 66..146 range is
+`[9, 0, 0, 0, 0, 0, 0, 71]` — every inked pixel in the top bin, nothing in between.
+The ink *shape* matches `coverage > 0` (IoU **0.857**) rather than `coverage >= 2`
+(0.613) or `coverage == 3` (0.449), so the device **is** running `bpp: 2` and simply
+thresholds any covered pixel to full on.
 
-Consequence for tooling: never let a renderer smooth what the device does not.
-Rasterise from the coverage bitmaps (lesson 18) instead of a desktop text stack,
-which would smooth Silkscreen *and* apply finer shading than 4 levels to Roboto.
+What this means:
+
+- `bpp` decides *which* pixels are inked, not how bright they are. Raising it to 4
+  would buy nothing; lowering it to 1 **would** change the look (mono rendering is a
+  50 % threshold, i.e. thinner glyphs than today's fat ink).
+- The harness must draw every `coverage > 0` pixel at the full colour — `rasterize.py`
+  now does.
+- The loss is downstream of ESPHome: `HUB75Display::draw_pixel_at` passes
+  `color.r/g/b` straight to `driver_->set_pixel()`. The esp-hub75 driver's colour path
+  (CIE 1931 gamma LUT + 1–255 "basis" brightness, per its docs) is where it must go.
+  **Not verified which step** — but testable: these values are already 5× reduced by
+  `bri = 0.2`, so setting brightness to 1.0 may separate the levels again.
+- Silkscreen was *never* at issue here: its bitmaps contain no partial pixels at all
+  (verified: 0 of 32 glyphs), so it is binary by construction.
+
+The process lesson: **the firmware's data and code are not evidence of what the panel
+shows.** Where the hardware can be photographed, measure the hardware.
+
+## 20. Verifying a render against the real panel (verified 2026-09-26)
+
+A photo of the panel can be turned into ground truth for the renderer:
+
+1. **Find the LED grid.** FFT the row/column luminance profiles and take the
+   fundamental in a plausible band (`n/40 .. n/12` → ~64 cycles across a 1468 px
+   photo of a 64×64 panel, i.e. ~23 px pitch). FFT phase gives a starting offset.
+2. **Refine the phase** by maximising the total sampled energy — the dots are
+   brightest at their centres.
+3. **Sample each LED** into a 64×64 brightness map. Use a *tight* window (±1 px is
+   enough); the ±4 px max window used first gave the same answer, but a tight sample
+   removes any doubt about a neighbouring LED's glow.
+4. **Build the expected map from the firmware's own bitmaps** (`test/fonts/metrics.json`)
+   for the text that is legible in the photo.
+5. **Align** by brute-forcing the drift offset (`dx`, `dy` ∈ -3..3) for best
+   correlation, then ask two separate questions:
+   - *Brightness:* median photo brightness per expected-coverage class → does the
+     panel antialias? (It does not.)
+   - *Shape:* IoU between the photo's lit set and each candidate ink mask
+     (`coverage > 0` / `>= 2` / `== 3`) → which coverage counts as on? (All of it.)
+
+This is what caught the wrong AA conclusion in lesson 19, and it is the method to
+reach for whenever a render is meant to predict the panel: compare against a photo,
+not against the source.

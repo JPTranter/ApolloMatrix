@@ -161,10 +161,10 @@ std::vector<Scenario> build_scenarios() {
   {
     auto in = base();
     in.temp = -5.4f; in.temp_prev = -5.4f;
-    add("temp_negative_box",
-        "Sub-zero temp: '-' is absent from the Roboto glyph set, so the device draws "
-        "Font::print()'s placeholder rectangle where the minus should be", in, true,
-        matrix::LedState::On);
+    add("temp_negative",
+        "Sub-zero temperature: a real minus sign is drawn (the Roboto glyph set now "
+        "includes '-'; before that it drew Font::print()'s placeholder rectangle)", in,
+        true, matrix::LedState::On);
   }
   {
     auto in = base();

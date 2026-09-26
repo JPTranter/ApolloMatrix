@@ -195,7 +195,7 @@ font:
     id: weather_font_l
     size: 14
     bpp: 2
-    glyphs: '0123456789.C°'
+    glyphs: '-0123456789.C°'
 
 light:
   - platform: esp32_rmt_led_strip

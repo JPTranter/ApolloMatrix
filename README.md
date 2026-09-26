@@ -140,12 +140,17 @@ python test/export_font_metrics.py --verify <build>/src/main.cpp
 ```
 
 `rasterize.py` then applies the firmware's rendering rules: `x1 = x - (width +
-x_offset)/2`, `y1 = y - height/2` (CENTER centres vertically too), coverage 0 = not
-drawn, full = the text colour, partial = `colour × (coverage/3)` against black.
-That is the device's own 4-level antialiasing, so Silkscreen comes out hard-edged
-while the Roboto temperature is smooth — exactly as on the panel. An unknown
-codepoint draws `Font::print()`'s placeholder rectangle; the `temp_negative_box`
-scenario shows a `-5.4°C` reading doing it.
+x_offset)/2`, `y1 = y - height/2` (CENTER centres vertically too), one pen step per
+glyph advance, and every pixel with coverage > 0 drawn at the full text colour.
+
+**The panel does not antialias.** ESPHome *does* blend partial coverage, but a
+LED-by-LED measurement of a photo of the device shows every inked pixel at identical
+brightness — medians 146 / 146 / 146 for coverage 1 / 2 / 3 against a background of
+66 — and the ink shape matches "coverage > 0" (IoU 0.86) rather than a 50% threshold
+(0.61) or full coverage only (0.45). So `bpp` decides *which* pixels are inked, not
+how bright they are, and the renderer thresholds coverage the same way. An unknown
+codepoint would draw `Font::print()`'s placeholder rectangle; the renderer models
+that too, but the glyph sets no longer need it.
 
 **`test/matrix_logic.h` is a copy** of the YAML lambda — `apollomatrix.yaml` stays
 the source of truth for the device. Changes must be mirrored in both; the sync

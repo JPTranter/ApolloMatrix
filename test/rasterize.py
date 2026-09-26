@@ -9,15 +9,16 @@ against a real device build. This script reproduces the device's rendering rules
   * geometry: x1 = x - (width + x_offset)/2, y1 = y - height/2   (TextAlign::CENTER
     centres vertically too; `height` is the font line height)
   * one pen step per glyph advance; ink at (pen + offset_x, y1 + offset_y)
-  * coverage 0 -> nothing drawn, coverage == bpp_max -> the text colour, anything
-    between -> colour * (coverage/bpp_max), truncated, blended against COLOR_OFF
-    (black) - i.e. the device's own antialiasing, at its own bit depth
+  * every pixel with coverage > 0 is drawn at the FULL text colour. ESPHome's
+    Font::print() blends partial coverage, but the panel does not show it - all
+    inked pixels render at the same brightness (measured from a photo of the
+    device; see README "Rendering fidelity" and lesson 19). `bpp` therefore only
+    decides WHICH pixels are inked, not how bright they are.
   * an unknown codepoint draws Font::print()'s filled rectangle (width = first
     glyph's advance, height = the font height)
 
-Consequence: Silkscreen renders hard-edged (its bitmaps contain no partial pixels)
-while the Roboto temperature is antialiased at 4 levels - exactly what the panel
-does.
+Consequence: Silkscreen and the Roboto temperature both render hard-edged / binary,
+matching the panel.
 
 The geometry and colours come from the compiled C++ (test/matrix_logic.h), not from
 this script.
@@ -147,17 +148,15 @@ def draw_device_text(img: Image.Image, font: DeviceFont, text: str, x: int, y: i
         vals = font.coverage(cp)
         for gy in range(gi["height"]):
             for gx in range(gi["width"]):
-                v = vals[gy * gi["width"] + gx]
-                if v == 0:
+                if vals[gy * gi["width"] + gx] == 0:
                     continue               # nothing drawn: background shows through
-                px = pen + gi["offset_x"] + gx
-                py = y1 + gi["offset_y"] + gy
-                if v == font.bpp_max:
-                    put(img, px, py, color)
-                else:
-                    # blend against COLOR_OFF (0,0,0), truncated to uint8, as the firmware does
-                    on = v / font.bpp_max
-                    put(img, px, py, tuple(int(c * on) for c in color))
+                # ESPHome's Font::print() computes a blended colour for partial
+                # coverage, but the panel does NOT show it: every inked pixel renders
+                # at the same brightness. Measured from a photo of the device - see
+                # "Rendering fidelity" in the README and lesson 19. So any non-zero
+                # coverage is drawn at the full colour, and bpp only decides *which*
+                # pixels are inked.
+                put(img, pen + gi["offset_x"] + gx, y1 + gi["offset_y"] + gy, color)
         pen += gi["advance"]
 
 

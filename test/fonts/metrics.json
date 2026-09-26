@@ -284,6 +284,14 @@
    "xheight": 8,
    "capheight": 10,
    "glyphs": {
+    "45": {
+     "advance": 4,
+     "offset_x": 0,
+     "offset_y": 7,
+     "width": 4,
+     "height": 2,
+     "bitmap": "00be"
+    },
     "46": {
      "advance": 4,
      "offset_x": 0,
