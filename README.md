@@ -98,6 +98,39 @@ from a different host.
   Inspect `.esphome/build/apollomatrix/src/main.cpp` for the translated logic,
   and build on the addon host (details in `docs/lessons/`).
 
+## Testing (host render harness)
+
+`test/` compiles the display logic on the PC and renders what the 64×64 panel
+would show — no ESP-IDF, no flashing.
+
+```bash
+test/run_tests.sh
+```
+
+Three steps:
+
+1. **Build** `test/main.cpp` (CMake + Ninja, host g++) with the ported display
+   logic in `test/matrix_logic.h`.
+2. **Sync check** (`test/check_sync.py`) — asserts the load-bearing expressions
+   (gating conditions, trend thresholds, text formats, layout anchors) still match
+   between `apollomatrix.yaml` and `test/matrix_logic.h`.
+3. **Run 19 scenarios** asserting the expected display/LED state, then rasterize
+   each to PNG (`test/rasterize.py`, PIL + the real fonts).
+
+Output: `test/output/png/<NN>_<scenario>.png` (8× zoom) and
+`test/output/png/_contact_sheet.png` (all scenarios in one grid).
+
+Coverage: window boundaries (07:30 / 08:00 / 21:59 / 22:00 / 22:30), lounge
+occupied vs empty, presence sensor with no state, manual override inside/outside
+the window and past the cutoff, the temperature colour ramp (1 °C / 6 °C / 32 °C),
+trend up/down/flat, brightness 0.2 vs 1.0, and missing HA sensor data.
+
+**`test/matrix_logic.h` is a copy** of the YAML lambda — `apollomatrix.yaml` stays
+the source of truth for the device. Changes must be mirrored in both; the sync
+check catches most drift. Fonts are vendored in `test/fonts/` (see its NOTICE), and
+`rasterize.py` reproduces ESPHome's own text-bounds rules so positions and line
+widths are representative.
+
 ## Known issues / TODO
 
 - **`sensor.scoresby_cloud_situation` does not exist on HA** (confirmed

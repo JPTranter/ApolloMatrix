@@ -184,3 +184,66 @@ addon (≥2026.8) accepts. Read a local error on a *new* option as version skew,
 as a config bug — and validate against the addon's version. The migration is
 cosmetic for the running device (the old spelling still builds until 2027.3), so it
 does not require a reflash to keep working.
+
+## 14. Host render harness: simulate the panel before flashing (verified 2026-09-26)
+
+`test/` compiles the display logic on the PC and renders PNGs of what the panel
+would show, with no ESP-IDF and no device. Layout: `test/matrix_logic.h` (ported
+logic) + `test/trace_canvas.h` (records draw calls) + `test/main.cpp` (19 scenarios
+that ASSERT the expected display/LED state) + `test/rasterize.py` (PIL, real fonts).
+Entry point: `test/run_tests.sh`.
+
+Two design consequences worth keeping:
+
+- **The logic is a deliberate copy.** The user chose "device untouched, zero risk"
+  over a shared header, so `apollomatrix.yaml` stays authoritative and
+  `test/check_sync.py` exists purely to make drift *detectable* — it asserts ~22
+  load-bearing expressions (conditions, formats, coordinates) appear in both files.
+  It is a smoke check, not proof; mirror changes by hand.
+- **Frame it as an assertion runner, not just a renderer.** Each scenario declares
+  the expected `display_active`/LED state, so a regression in the gate fails the run
+  (non-zero exit) instead of silently producing a wrong picture.
+
+Because the harness cannot execute the firmware, it also cannot catch things the
+device does with the LED object (effects, restore state) — it models the LED as
+`on`/`off`/`unchanged` only.
+
+## 15. ESPHome's `TextAlign::CENTER` centres VERTICALLY as well (verified 2026-09-26)
+
+Getting this wrong makes every simulated render lie about clipping. In ESPHome,
+`CENTER = CENTER_VERTICAL | CENTER_HORIZONTAL` (`components/display/display.h`), and
+`Display::get_text_bounds()` computes the box top-left as:
+
+```
+x1 = x - (width + x_offset) / 2
+y1 = y - height / 2          // height = "top of text -> bottom" (Font::height_)
+```
+
+So in `it.printf(32, 58, font, ...)` the 58 is the **middle** of the line, not its
+top. Top-aligning the same coordinate in a renderer pushes an 8 px line to 58–66 and
+shows a 2 px clip at the bottom of a 64 px panel that the real device does not have.
+
+The first render of this harness had exactly that bug: it top-aligned (`anchor="ma"`
+in PIL) and the DEWPT line appeared cut off, implying a firmware layout problem that
+did not exist. Fix by measuring with the renderer's own metrics and drawing with the
+ascender-top at `(x - width/2, y - height/2)`. Verify against the ESPHome source in
+the installed package
+(`<site-packages>/esphome/components/display/display.cpp`) — not from memory.
+
+## 16. The harness produced "Successfully compiled" then a silent exit 127 (verified 2026-09-26)
+
+The MinGW-built exe linked fine, `ldd` resolved every DLL, yet every run exited
+`127` with no output (from bash *and* from `cmd.exe`). Cause: the exe resolved
+`libstdc++-6.dll` from **MSYS2's msvcrt** `/mingw64/bin` rather than the **UCRT**
+WinLibs toolchain that compiled it (both are on `PATH`). Fix: link the runtime
+statically (`target_link_options(... -static)` under `if(MINGW)`), which removes the
+whole class of problem for a host tool.
+
+Related build nits from the same session:
+
+- `M_PI` is not defined under `-std=c++17` (strict ANSI) with MinGW/glibc; supply a
+  fallback `#ifndef M_PI` define rather than dropping `-std=c++17`.
+- Native Windows programs (cmake, python, the harness exe) do **not** understand
+  MSYS paths like `/c/Users/...`. Convert with `cygpath -m` before passing them, or
+  cmake fails with "The source directory ... does not exist" and the exe writes
+  nothing.
