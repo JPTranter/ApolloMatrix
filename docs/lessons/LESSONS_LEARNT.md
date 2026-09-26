@@ -637,3 +637,44 @@ Stated as caveats, because they are inferences, not measurements:
   black frame clocked at the refresh rate and the ESP32 keeps running, so the device
   draws *something* continuously whenever it is plugged in. If that matters, the honest
   next step is to measure it — not to assume the gate can be cycled safely.
+
+---
+
+## 26. A gate nothing runs is not a gate (verified 2026-09-26)
+
+`test/check_privacy.py` existed in the working tree, passed when run by hand, and was
+referenced by nothing: not by `test/run_tests.sh`, not by CI, not by the pre-commit
+config. Meanwhile `CONTRIBUTING.md` and the README told contributors that
+`test/run_tests.sh` "runs the whole gate". The suite was green and the secret/PII
+check had never run in anger.
+
+It is now step 1 of the suite (before the build — it needs no build, and it is the
+only check that looks at files that are not committed yet, so failing there costs
+nothing) and its failure gets its own `RESULT:` message instead of borrowing the
+sync check's "logic drift" wording.
+
+Two silent-pass bugs in the script are worth remembering, because both made it print
+"clean" for work it had not done:
+
+- **Tracked files only.** `git ls-files` lists the index, so a new file is invisible
+  until it is staged. That is precisely the window in which a fresh photo sits in
+  `docs/images/` — and a phone photo is the one file in this repo class that carries
+  GPS. The scan now also takes `git ls-files --others --exclude-standard`.
+- **`from PIL import Image` inside the per-image `try`.** A missing Pillow raised
+  ImportError, `except Exception: return` swallowed it, and every image was skipped
+  while the run still reported "clean". Pillow is imported once, up front, and its
+  absence is now a hard failure; an image that cannot be opened is reported as
+  unverified rather than counted as clean. A non-zero `git ls-files` is a failure
+  too, not an empty file list.
+
+Rule: when adding a check, wire it into the one command everyone runs and prove the
+negative — feed it a file that *should* fail (an untracked JPEG with an EXIF/GPS
+block, a text file naming a home path) and confirm the suite goes red. A check whose
+only evidence is a green run over a clean tree has not been tested.
+
+Related, and the reason the photo is not what the history says: the untracked
+full-resolution source of `docs/images/device-photo.jpg` had been left behind in
+`docs/images/` after the derivative was committed. It is a byte-identical scene
+(2164×2884, mean absolute difference 1.9 per channel against the LANCZOS downscale),
+so the repo did not need it; it now lives outside the repo and only the 1200 px,
+metadata-free derivative is tracked.
