@@ -87,6 +87,11 @@ from a different host.
   fonts — works from here and is a good first check. It needs a `secrets.yaml`;
   run it from a scratch copy with dummy WiFi creds so real ones never enter the
   repo.
+- **Version skew:** the local CLI is *older* (2026.7.4) than the ESPHome addon on
+  the HA server. Options added after 2026.7.4 — e.g. `channel_colors` — fail here
+  with `[channel_colors] is an invalid option for [light.esp32_rmt_led_strip]`
+  while the addon accepts them. Treat a local failure on a *new* option as a
+  version-skew signal, not a config error.
 - **Do not trust `python -m esphome compile` in this git-bash/MSYS
   environment** — ESP-IDF refuses to build there and ESPHome prints
   `Successfully compiled program` even when no `.elf`/`.bin` is produced.

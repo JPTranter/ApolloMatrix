@@ -161,3 +161,26 @@ via `{"type": "lovelace/config"}` / `lovelace/config/save` — REST has no endpo
 card config, and `save` takes the **entire** dashboard. Back up first, assert the exact
 target was found, and re-read after saving to verify. Full procedure lives in the
 `home-assistant-control` skill; don't re-derive it here.
+
+## 13. Newer ESPHome options fail local validation — the local CLI lags the addon (verified 2026-09-26)
+
+The ESPHome addon offered a config migration:
+
+> `rgb_order` and its flags folded into `channel_colors` in `light.esp32_rmt_led_strip`.
+> Changed in ESPHome 2026.8, the old spelling is removed in 2027.3.
+
+The rewrite is a literal rename — `rgb_order: GRB` → `channel_colors: GRB`
+(per the current docs, `channel_colors` is now **Required**, takes each of `R`,
+`G`, `B` exactly once, optionally one `W` anywhere, case-insensitive).
+
+The trap: the local CLI is ESPHome **2026.7.4**, and it rejects the new spelling:
+
+```
+[channel_colors] is an invalid option for [light.esp32_rmt_led_strip]. Please check the indentation.
+```
+
+So on this repo `esphome config` can now produce **false failures** for options the
+addon (≥2026.8) accepts. Read a local error on a *new* option as version skew, not
+as a config bug — and validate against the addon's version. The migration is
+cosmetic for the running device (the old spelling still builds until 2027.3), so it
+does not require a reflash to keep working.
