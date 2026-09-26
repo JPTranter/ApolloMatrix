@@ -5,19 +5,31 @@
 // SYNC CONTRACT
 // -------------
 // ../apollomatrix.yaml is the source of truth for device behaviour. This file is
-// a COPY of its lambda so the gating + drawing logic can be compiled and
+// a COPY of its display lambda so the gating + drawing logic can be compiled and
 // rendered on a PC without the ESP-IDF toolchain (which does not build here).
 // A copy can drift.
 //
 // Whenever the YAML lambda changes, mirror the change here, then run:
 //     test/run_tests.sh
-// `test/check_sync.py` (invoked by run_tests.sh) asserts that the canonical
-// expressions listed there still appear in BOTH files. It catches renames and
-// coordinate/format changes, not every possible drift — keep them in step by hand.
+// Three checks surround it:
+//   * test/check_sync.py — the canonical expressions listed there appear in BOTH
+//     files, AND the window bounds mirror the YAML's `substitutions:` block BY VALUE
+//     (`start_hour` / `off_hour` are literals here; in the YAML they are `${...}`).
+//   * test/export_font_metrics.py --check — the glyph fixtures match the YAML fonts.
+//   * the scenario runner — each scenario asserts the expected display result.
+// They catch renames, coordinate/format changes and window drift, not every possible
+// divergence — keep the two files in step by hand.
 //
-// Everything below mirrors the lambda line-for-line, including ESPHome's
-// truncating esphome::Color(float,float,float) conversion, so pixel colours and
-// text positions match the panel.
+// Mirrored expression-for-expression, including ESPHome's truncating
+// esphome::Color(float,float,float) conversion, so pixel colours and text positions
+// match the panel.
+//
+// NOT mirrored — the harness cannot see these, and changing them needs no edit here:
+//   * the HA entity declarations, the presence-gate block (Option A/B) and the clock
+//   * `time.on_time`, which resets `manual_override` at `off_hour`
+//   * hardware: panel size, shift driver, bit depth, all pins
+//   * the `font:` blocks (guarded separately by the glyph-fixture check)
+//   * `update_interval`, and the boot sequence
 
 #pragma once
 
