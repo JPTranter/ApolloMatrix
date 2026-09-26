@@ -45,33 +45,64 @@ At 22:00 the `manual_override` is reset and the matrix blanks.
 | `switch.apollomatrix_matrix_toggle` | switch | Manual override — force the display on |
 | `light.apollomatrix_onboard_status_led` | light | Onboard WS2812 status LED |
 | `binary_sensor.sonoff_snzb_06p24` | binary_sensor | Lounge presence gate (from HA) |
-| `update.apollomatrix_firmware` | update | OTA updates |
 
-A weather-condition change in `sensor.scoresby_cloud_situation` triggers the
-`show_weather_timer` script (display forced active for 60 s).
+There is **no** `update.apollomatrix_firmware` entity and no `update:` platform
+in the config — OTA updates are triggered from the ESPHome dashboard, not HA.
+
+The `weather_condition` text sensor (`sensor.scoresby_cloud_situation`) feeds the
+`show_weather_timer` script, but that script only sets the `display_active`
+global, which the display lambda never reads — so a weather change does **not**
+actually force the display on (dead code; see Known issues).
 
 ## Requirements
 
-- **ESPHome** with the `hub75` display platform available (the **esp-hub75**
-  component — see the `external_components` note below).
+- **ESPHome** with the `hub75` display platform. The `esp-hub75` component
+  (v0.3.5) is pulled automatically via the ESP-IDF component manager
+  (`idf_component.yml` in the generated build) — **no `external_components:`
+  block is needed**.
 - Fonts are fetched at build time from Google Fonts (`gfonts://Silkscreen`, `gfonts://Roboto`).
 
-## Setup
+## Build / flash (ESPHome addon on the HA server)
 
-```bash
-cp secrets.yaml.example secrets.yaml   # then fill in wifi_ssid / wifi_password
-esphome run apollomatrix.yaml
-```
+Firmware is built and pushed from the **ESPHome addon on the Home Assistant
+server**, not from this repo's machine.
 
-`secrets.yaml` is git-ignored.
+1. Copy `apollomatrix.yaml` from this repo into the addon's config dir on the HA
+   host, e.g. `/config/esphome/apollomatrix.yaml`. The addon already has
+   `secrets.yaml` with the WiFi credentials (`!secret wifi_ssid` /
+   `!secret wifi_password`); this repo's `secrets.yaml` is deliberately absent
+   (git-ignored).
+   ⚠️ Copy the file from disk — don't paste it through chat: runs of 10+ digits
+   get redacted to `[PHONE]`, which corrupts the font `glyphs` lines.
+2. In the ESPHome dashboard: select **apollomatrix** → ⋮ → **Install** →
+   **Wirelessly** (OTA). The addon compiles (fetches the two Google fonts,
+   resolves `esp-hub75`) and flashes over Wi-Fi.
+
+`cp secrets.yaml.example secrets.yaml` is only needed if you build with the CLI
+from a different host.
+
+### Local validation (this repo)
+
+- `python -m esphome config apollomatrix.yaml` validates schema and fetches the
+  fonts — works from here and is a good first check. It needs a `secrets.yaml`;
+  run it from a scratch copy with dummy WiFi creds so real ones never enter the
+  repo.
+- **Do not trust `python -m esphome compile` in this git-bash/MSYS
+  environment** — ESP-IDF refuses to build there and ESPHome prints
+  `Successfully compiled program` even when no `.elf`/`.bin` is produced.
+  Inspect `.esphome/build/apollomatrix/src/main.cpp` for the translated logic,
+  and build on the addon host (details in `docs/lessons/`).
 
 ## Known issues / TODO
 
-- **No `external_components:` block.** The config uses `platform: hub75`, which
-  comes from the esp-hub75 component (the compiled firmware references
-  `/managed_components/esphome__esp-hub75/...`). Add the appropriate
-  `external_components:` source, or confirm it is installed on the build host.
-- `sensor.scoresby_cloud_situation` is referenced by the `weather_condition`
-  text sensor — confirm this entity exists on the HA instance.
-- `global_brightness` is declared but unused (brightness is driven by the
-  `matrix_brightness` number entity instead).
+- **`sensor.scoresby_cloud_situation` does not exist on HA** (confirmed
+  2026-09-26) — the `weather_condition` text sensor never updates and
+  `show_weather_timer` never fires. Harmless because it's dead code (below);
+  remove or repoint it if a cloud-situation entity is ever added.
+- **`display_active` + `show_weather_timer` are dead**: the display lambda never
+  reads `display_active`, so a weather change does not force the display on
+  (a previous version of this README claimed it did for 60 s).
+- **`global_brightness` is declared but unused** — brightness is driven by the
+  `matrix_brightness` number entity instead.
+- **No `update:` platform** — there is no `update.apollomatrix_firmware` HA
+  entity; OTA is via the ESPHome dashboard.
