@@ -251,9 +251,20 @@ that too, but the glyph sets no longer need it.
 
 **`test/matrix_logic.h` is a copy** of the YAML lambda — `apollomatrix.yaml` stays
 the source of truth for the device. Changes must be mirrored in both; the sync
-check catches most drift. Fonts for the previews are vendored in `test/fonts/`
-(both OFL 1.1, licence texts alongside — see its `NOTICE.txt`); the firmware build
-never uses them.
+check catches most drift.
+
+The two preview fonts are **not** distributed with this repo (third-party font
+software). Fetch them when you want the caption chrome or need to re-export the glyph
+fixtures:
+
+```bash
+python test/fetch_fonts.py --download      # simplest, no ESPHome needed
+python test/fetch_fonts.py --via-esphome   # byte-identical to the firmware
+```
+
+Renders still work without them — `metrics.json` is committed and the caption font
+falls back. See `test/fonts/NOTICE.txt` for the licences. The firmware build never
+reads that directory: ESPHome fetches `gfonts://` itself.
 
 ## Known issues / TODO
 

@@ -553,3 +553,39 @@ Follow-up changes (same day), all user-requested:
   add the device in HA → troubleshooting → optional tweaks);
   `docs/lessons/LESSONS_LEARNT.md` = this technical record. Keep the User Guide in step
   with the config surface: a new substitution belongs in its step-2 block too.
+
+## 24. The preview fonts are fetched, not redistributed (verified 2026-09-26)
+
+Both fonts are **SIL OFL 1.1**: Silkscreen (Copyright 2001 The Silkscreen Project
+Authors) and Roboto (Copyright 2011 The Roboto Project Authors, relicensed — it is
+**not** Apache-2.0, which an earlier NOTICE here wrongly claimed). Neither declares a
+Reserved Font Name. Metadata: `google/fonts/ofl/{silkscreen,roboto}`.
+
+OFL clause 2 *does* permit bundling the fonts with software — "provided that each copy
+contains the above copyright notice and this license" — so vendoring them would have
+been legal with the OFL texts alongside. **The decision was not to redistribute them at
+all**: the `.ttf` files are git-ignored, and `test/fetch_fonts.py` fetches them on
+demand. The OFL texts stay in `test/fonts/` because the firmware *does* embed glyph
+bitmaps derived from these fonts, and because anyone who fetches the files gets the
+terms with them.
+
+Nothing in the firmware path needs them: `font:` uses `gfonts://` and ESPHome downloads
+the fonts on the build host. They are read only by `rasterize.py` (caption chrome) and
+`export_font_metrics.py` (re-exporting the fixtures). Rendering without them works —
+verified by moving the TTFs away and running the suite: 20 scenarios pass and all 42
+images are still produced, with the caption font falling back to PIL's default.
+`run_tests.sh` prints a one-line hint when they are absent so the fallback is visible
+rather than mysterious.
+
+Fetch routes, and why they are not equivalent:
+
+| route | fidelity |
+|---|---|
+| copy from an ESPHome cache (`<config-dir>/.esphome/font/`) | **byte-identical to the firmware** — verified by SHA1 against the originals |
+| `--via-esphome` — builds a throwaway cache, copies, cleans up | same, without you having to find the cache |
+| `--download` — HTTPS from the Google Fonts repo | upstream releases: Silkscreen is static there, but **Roboto only ships as a variable font** (488 KB vs the firmware's 123 KB static 400), so its metrics can differ slightly. Fine for captions, not for regenerating `metrics.json`. |
+
+Gotcha found while writing `--via-esphome`: the throwaway `secrets.yaml` needs a WiFi
+password of **at least 8 characters**. With a shorter dummy, ESPHome fails validation
+*before* downloading the fonts, so the fetch silently finds nothing and reports no
+cache — the symptom is "esphome did not produce a font cache", not a secrets error.

@@ -23,6 +23,10 @@ venv/
 test/build/
 test/output/
 
+# Preview fonts are third-party and not distributed - fetch with
+# `python test/fetch_fonts.py` (see test/fonts/NOTICE.txt).
+test/fonts/*.ttf
+
 # OS noise
 .DS_Store
 Thumbs.db

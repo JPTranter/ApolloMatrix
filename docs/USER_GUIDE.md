@@ -187,7 +187,9 @@ decides when the panel is lit. The manual override still respects `off_hour`.
   reboots, so set it once in Home Assistant and leave it.
 - **Preview before flashing**: the `test/` harness renders the panel on a PC
   (`test/run_tests.sh`) — see the README. Handy for checking whether longer text still
-  fits, since the widest line currently uses 62 of the 64 pixels.
+  fits, since the widest line currently uses 62 of the 64 pixels. The two fonts it uses
+  are not shipped with the project; `python test/fetch_fonts.py --download` fetches
+  them (renders work without, just with a plainer caption font).
 - **Any change to displayed text** needs the font's `glyphs:` entry extended, because
   glyph bitmaps are baked into the firmware. The README explains the procedure.
 

@@ -41,6 +41,11 @@ BIN="$BUILD/render_scenarios"
 
 echo
 echo "== rasterize (crisp: faithful pixel grid) =="
+if [ ! -f "$HERE/fonts/Silkscreen-Regular.ttf" ] || [ ! -f "$HERE/fonts/Roboto-Regular.ttf" ]; then
+  echo "note: preview fonts are not present (not distributed with this repo)."
+  echo "      Renders still work; only the caption font falls back."
+  echo "      Fetch them with: python test/fetch_fonts.py --download"
+fi
 "$PY" "$(win "$HERE/rasterize.py")" "$(win "$OUT/traces")" "$(win "$OUT/images")" --style crisp || exit 1
 
 echo
