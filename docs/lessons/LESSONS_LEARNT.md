@@ -247,3 +247,42 @@ Related build nits from the same session:
   MSYS paths like `/c/Users/...`. Convert with `cygpath -m` before passing them, or
   cmake fails with "The source directory ... does not exist" and the exe writes
   nothing.
+
+## 17. The DEWPT line has ZERO spare width, and the drift is quantised (verified 2026-09-26)
+
+A render showed the final `C` of `DEWPT 11.2°C` crossing the right edge, so it was
+checked against the device's own glyph metrics — extracted from the generated
+`main.cpp` of an actual build (`font_glyph_id`, and the `Font(...)` ctor args
+`baseline=9, height=10` for Silkscreen 8). Line widths, using
+`x1 = x - (width + x_offset)/2` and one pen step per glyph advance:
+
+| line | width | spare vs 64 px |
+|---|---|---|
+| `26/09 10:32` (Silkscreen 8) | 58 | 6 |
+| `11.4°C` (Roboto 14) | 41 | 23 |
+| `FEELS 9.3°C` | 55 | 9 |
+| `HMDTY 99%` | 53 | 11 |
+| **`DEWPT 11.2°C`** | **62** | **2** |
+
+So `DEWPT` is 62 px in a 64 px panel: at `dx=+1` its last ink column is **63**, the
+final column. It fits — the device does not clip the `C` — but with nothing to
+spare. Any longer value (a third digit, or a `-` sign) overflows.
+
+**All five lines fit at every drift the device can actually reach.** The important
+part is *reachable*: the lambda runs on `update_interval: 10s`, so the 60 s drift
+cycle is sampled at only six phases per minute, giving offsets
+`(-1,-1) (-1,1) (0,-2) (0,2) (1,-1) (1,1)` — `dx` is only ever `-1/0/+1`.
+`dx=+2` needs `sin(phase) >= 1.0` *exactly*, so it is essentially unreachable.
+
+The render that showed the clipping was wrong twice over: it used `millis = 15000`
+(`phase = π/2` → `dx=+2`, an unreachable state) **and** measured text width with the
+rasterizer's own TTF metrics instead of ESPHome's glyph advances. Scenario drift
+phases now use the reachable set, with the baseline pinned at `millis = 10000`
+(`dx=+1`, `dy=+1`) — the worst realistic case for the right edge.
+
+**Bonus latent bug found the same way:** `-` (U+002D) is *not* in the Roboto glyph
+set (`glyphs: '0123456789.C°'`), while `%.1f` formats a minus for sub-zero
+temperatures. `Font::print()` draws an **unknown glyph as a filled rectangle**
+(width = `glyphs_[0].advance`, height = the font height), so a `-5.4°C` reading would
+put a solid block where the minus belongs. Fix by adding `-` to that font's glyphs.
+The small font already has `-`; only the large (temperature) font is missing it.
