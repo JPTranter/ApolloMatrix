@@ -401,3 +401,42 @@ A photo of the panel can be turned into ground truth for the renderer:
 This is what caught the wrong AA conclusion in lesson 19, and it is the method to
 reach for whenever a render is meant to predict the panel: compare against a photo,
 not against the source.
+
+## 21. What the burn-in drift actually buys (verified 2026-09-26)
+
+The lambda shifts the whole image by `dx = roundf(sin(phase)*1.5)`,
+`dy = roundf(cos(phase)*1.5)` over a 60 s phase cycle, which reads as a gentle
+±1.5 px anti-burn-in drift. Measured against the real content — for each reachable
+offset, the lit-pixel mask from the firmware's bitmaps, then each pixel's duty across
+the cycle:
+
+| | ink px | union | mean duty | peak duty | pixels at 100% duty |
+|---|---|---|---|---|---|
+| no drift | 468 | 468 | 100 % | 100 % | 468 (all) |
+| current drift (6 states) | 468 | **1672** | 28 % | **67 %** | **0** |
+| hypothetical ±4 px (81 states) | 461 | 3567 | 13 % | 22 % | 0 |
+
+So the drift is not useless — it spreads the same ink over **3.6×** the pixels, drops
+the peak duty to 67 % and means **no pixel is permanently lit** (with no drift every
+inked pixel ages at full rate). The latent ghost becomes a 1–2 px blur rather than
+crisp text, and the hottest pixels age about a third slower.
+
+Its ceiling is the amplitude versus the stroke width: Silkscreen's strokes are 1 px
+(at 4×5 glyphs) and Roboto 14's are ~2 px, so pixels at a stroke's core are still lit
+in 2–4 of the 6 states. It also cannot grow horizontally — `FEELS` (55 px) and
+`DEWPT` (62 px) are centred in a 64 px panel with ~1 px of slack, which is why `dy`
+carries the larger ±2.
+
+What matters more than the drift, in order:
+
+1. **Brightness.** `bri = 0.2` runs the LEDs at about a fifth of rated current, and
+   LED aging is strongly superlinear in current (~I^1.5–2). This is a far bigger lever
+   than any pixel shift, and it is already in place.
+2. **On-time.** Total duty-hours is the other half of the aging equation; the
+   lounge-presence gate cuts the hours the panel is lit at all.
+3. **A wider drift, if the layout ever allows it.** ±4 px / 81 states drops the peak
+   duty to ~22 % — but needs headroom the two long lines do not currently have.
+
+Caveat: this is a duty-cycle / spatial-spread analysis of the pattern, not a lifetime
+prediction — it says nothing about absolute LED hours, only about how evenly the
+wear is distributed.
