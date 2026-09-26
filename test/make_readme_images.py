@@ -17,6 +17,8 @@ import shutil
 import sys
 from pathlib import Path
 
+from PIL import Image
+
 REPO = Path(__file__).resolve().parent.parent
 SRC = REPO / "test" / "output" / "images"
 DST = REPO / "docs" / "images"
@@ -30,6 +32,42 @@ PICKS = {
     "device_01_window_vacant_1400.png": "device-panel-off.png",
     "crisp_00_window_occupied_10am.png": "crisp-normal.png",
 }
+
+# Animated hero: the panel cycling through its most distinct states. Cropped to the
+# panel itself (the renders carry a caption strip below it, which would just look like
+# test output in a README), downscaled, and quantised to keep the file reasonable.
+GIF_NAME = "device-states.gif"
+GIF_FRAMES = [
+    "device_00_window_occupied_10am.png",   # everyday, brightness 0.2
+    "device_17_full_brightness.png",        # brightness 1.0
+    "device_14_trend_up.png",               # trend arrow
+    "device_12_temp_hot_red.png",           # 32 C, red end of the ramp
+    "device_01_window_vacant_1400.png",     # blanked
+]
+GIF_PX = 420
+GIF_FRAME_MS = 1200
+GIF_COLORS = 128
+
+
+def build_gif() -> int:
+    frames = []
+    for name in GIF_FRAMES:
+        src = SRC / name
+        if not src.exists():
+            print(f"  MISSING {name} (scenario renamed?) - no GIF written")
+            return 0
+        im = Image.open(src).convert("RGB")
+        # the panel is drawn at 8px padding with a 1px border, 64 LEDs x 16px cells
+        panel = im.crop((7, 7, 7 + 64 * 16 + 2, 7 + 64 * 16 + 2))
+        frames.append(panel.resize((GIF_PX, GIF_PX), Image.LANCZOS)
+                      .convert("P", palette=Image.ADAPTIVE, colors=GIF_COLORS))
+
+    out = DST / GIF_NAME
+    frames[0].save(out, save_all=True, append_images=frames[1:],
+                   duration=GIF_FRAME_MS, loop=0, optimize=True)
+    print(f"  -> docs/images/{GIF_NAME} "
+          f"({out.stat().st_size // 1024} KB, {len(frames)} frames)")
+    return 1
 
 
 def main() -> int:
@@ -48,8 +86,11 @@ def main() -> int:
         print(f"  {src_name} -> docs/images/{dst_name}")
         copied += 1
 
-    print(f"\ncopied {copied}/{len(PICKS)} image(s) to {DST}")
-    return 0 if copied == len(PICKS) else 1
+    made_gif = build_gif()
+
+    print(f"\ncopied {copied}/{len(PICKS)} image(s) to {DST}, "
+          f"animated hero: {'written' if made_gif else 'not written'}")
+    return 0 if (copied == len(PICKS) and made_gif) else 1
 
 
 if __name__ == "__main__":

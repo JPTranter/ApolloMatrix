@@ -1,5 +1,14 @@
 # ApolloMatrix
 
+| How it looks — device preview | How it is — the faithful 64×64 grid |
+|---|---|
+| ![the panel cycling through its states: the everyday frame, full brightness, a rising trend arrow, 32 °C in red, then blanked](docs/images/device-states.gif) | ![the everyday frame as the 64×64 pixel grid the panel actually receives](docs/images/crisp-normal.png) |
+
+*Both rendered by the host test harness, not photographed. The animation walks through
+the everyday frame at brightness 0.2, full brightness, a rising trend arrow, the red end
+of the colour ramp, and the blanked state — [more states
+below](#what-it-looks-like).*
+
 ESPHome configuration for an **Apollo Automation M-1** 64×64 HUB75 LED matrix
 panel driven by an **ESP32-S3** (DevKitC-1). The panel shows the date/time and
 live weather, colour-coded by temperature, with a 30-minute trend arrow. It only
@@ -98,8 +107,9 @@ At 22:00 the `manual_override` is reset and the matrix blanks.
 
 ## What it looks like
 
-Snapshots from the host harness. To refresh them: `test/run_tests.sh` then
-`python test/make_readme_images.py`.
+Snapshots from the host harness — including the animated hero at the top. To refresh
+them: `test/run_tests.sh` then `python test/make_readme_images.py` (which also rebuilds
+the GIF).
 
 | Render | State |
 |---|---|
