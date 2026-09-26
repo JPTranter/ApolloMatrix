@@ -23,11 +23,14 @@ matching the panel.
 The geometry and colours come from the compiled C++ (test/matrix_logic.h), not from
 this script.
 
-Outputs:
-  <out_dir>/<name>.png          one 8x-zoomed image per scenario (+ caption strip)
-  <out_dir>/_contact_sheet.png  all scenarios in one grid for quick review
+Outputs (all in one directory, prefixed by style):
+  <out_dir>/crisp_<name>.png        faithful 64x64 pixel grid, 8x zoom (+ caption)
+  <out_dir>/device_<name>.png       LED-panel look
+  <out_dir>/crisp_contact_sheet.png all crisp scenarios in one grid
+  <out_dir>/device_contact_sheet.png
+Default out_dir is output/images.
 
-Usage: rasterize.py [traces_dir] [out_dir]
+Usage: rasterize.py [traces_dir] [out_dir] [--style crisp|device]
 """
 
 from __future__ import annotations
@@ -202,7 +205,7 @@ def render_panel(trace: dict, fonts: dict[str, DeviceFont]) -> Image.Image:
 DEVICE_CELL = 16        # px per LED in the device-style output
 DEVICE_EXPOSURE = 2.2   # gain to mimic a dark-room photo (1.0 = the true brightness)
 PANEL_BG = (11, 11, 13)
-UNLIT_LEVEL = 14        # faint dots the unlit packages catch
+UNLIT_LEVEL = 7         # faint dots the unlit packages catch (lower = more contrast)
 CORE_RADIUS = 0.30      # LED die radius, in cell units
 GLOW_SIGMA = 0.52
 GLOW_GAIN = 0.32
@@ -324,8 +327,9 @@ def main() -> int:
     args = ap.parse_args()
 
     traces_dir = Path(args.traces_dir)
-    out_dir = Path(args.out_dir or ("output/png" if args.style == "crisp" else "output/png_device"))
+    out_dir = Path(args.out_dir or "output/images")
     out_dir.mkdir(parents=True, exist_ok=True)
+    prefix = args.style + "_"
 
     global CAPTION_FONT_PATH
     fonts_dir = Path(__file__).resolve().parent / "fonts"
@@ -349,16 +353,16 @@ def main() -> int:
         trace = json.loads(path.read_text(encoding="utf-8"))
         panel = render_panel(trace, fonts)
         shown = device_look(panel, cell=args.cell, exposure=args.exposure) if device else panel
-        with_caption(shown, trace, 1 if device else ZOOM).save(out_dir / f"{path.stem}.png")
+        with_caption(shown, trace, 1 if device else ZOOM).save(out_dir / f"{prefix}{path.stem}.png")
         items.append((trace, device_look(panel, cell=sheet_cell, exposure=args.exposure)
                       if device else panel))
 
     build_contact_sheet(items, tile_zoom=1 if device else SHEET_ZOOM).save(
-        out_dir / "_contact_sheet.png")
+        out_dir / f"{prefix}contact_sheet.png")
 
     failed = [t["name"] for t, _ in items if not t.get("pass")]
-    print(f"rendered {len(items)} scenario image(s) -> {out_dir}")
-    print(f"contact sheet      -> {out_dir / '_contact_sheet.png'}")
+    print(f"rendered {len(items)} {args.style} image(s) -> {out_dir}")
+    print(f"contact sheet      -> {out_dir / f'{prefix}contact_sheet.png'}")
     if failed:
         print(f"FAILING scenarios: {', '.join(failed)}")
     return 0

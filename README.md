@@ -120,18 +120,19 @@ Four steps:
 4. **Run 20 scenarios** asserting the expected display/LED state, then rasterize
    each to PNG.
 
-Two styles are rendered for every scenario:
+Two styles are rendered for every scenario, into one directory (`test/output/images/`),
+prefixed by style:
 
-- **crisp** → `test/output/png/` — the faithful 64×64 pixel grid at 8× zoom, with a
-  `_contact_sheet.png`. Use this to judge layout and content.
-- **device** → `test/output/png_device/` — an LED-panel look: round LEDs with a glow
-  halo on a dark mask and faint unlit packages between them, plus a contact sheet.
-  Deliberately **uniform** — no per-LED brightness spread and no vignette, so every
-  LED of the same colour renders identically. Presentation only — the default
-  `--exposure 2.2` mimics a dark-room photo and `--exposure 1.0` gives the true
-  brightness. Use this to judge how it will *appear*.
+- **crisp_** — the faithful 64×64 pixel grid at 8× zoom. Use this to judge layout and
+  content.
+- **device_** — an LED-panel look: round LEDs with a glow halo on a dark mask and
+  faint unlit packages between them. Deliberately **uniform** — no per-LED brightness
+  spread and no vignette, so every LED of the same colour renders identically.
+  Presentation only — the default `--exposure 2.2` mimics a dark-room photo and
+  `--exposure 1.0` gives the true brightness. Use this to judge how it will *appear*.
 
-Knobs: `rasterize.py [traces_dir] [out_dir] --style crisp|device --cell 16 --exposure 2.2`.
+Each style also gets a `<style>_contact_sheet.png`. Knobs:
+`rasterize.py [traces_dir] [out_dir] --style crisp|device --cell 16 --exposure 2.2`.
 
 Coverage: window boundaries (07:30 / 08:00 / 21:59 / 22:00), lounge occupied vs
 empty, presence sensor with no state, manual override inside/outside the window and
