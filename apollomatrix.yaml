@@ -46,6 +46,11 @@ output:
     pin: GPIO7
     id: onboard_power_gate
 
+binary_sensor:
+  - platform: homeassistant
+    id: lounge_presence
+    entity_id: binary_sensor.sonoff_snzb_06p24
+
 sensor:
   - platform: homeassistant
     id: current_temp
@@ -185,12 +190,12 @@ font:
     id: weather_font
     size: 8
     bpp: 2
-    glyphs: '-[PHONE]°CEFLSKMPUIWDHTY .:%/'
+    glyphs: '-0123456789°CEFLSKMPUIWDHTY .:%/'
   - file: "gfonts://Roboto"
     id: weather_font_l
     size: 14
     bpp: 2
-    glyphs: '[PHONE].C°'
+    glyphs: '0123456789.C°'
 
 light:
   - platform: esp32_rmt_led_strip
@@ -244,13 +249,12 @@ display:
       float bri = id(matrix_brightness).state;
       int off_h = id(off_hour_cutoff);
 
-      bool is_weekday = (now.day_of_week >= 2 && now.day_of_week <= 6);
-      bool is_weekend = !is_weekday;
-      bool weekday_condition = (is_weekday && now.hour >= 16 && now.hour < off_h);
-      bool weekend_condition = (is_weekend && now.hour >= 10 && now.hour < off_h);
+      bool in_window = (now.hour >= 8 && now.hour < off_h);
+      bool lounge_present = id(lounge_presence).has_state() && id(lounge_presence).state;
+      bool auto_on = (in_window && lounge_present);
       bool forced_on = (id(manual_override) && now.hour < off_h);
 
-      if (now.is_valid() && (weekday_condition || weekend_condition || forced_on)) {
+      if (now.is_valid() && (auto_on || forced_on)) {
         it.fill(esphome::Color(0, 0, 0));
 
         float drift_phase = (millis() % 60000) / 60000.0f * 2.0f * M_PI;
