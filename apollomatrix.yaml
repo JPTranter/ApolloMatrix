@@ -257,11 +257,7 @@ display:
       if (now.is_valid() && (auto_on || forced_on)) {
         it.fill(esphome::Color(0, 0, 0));
 
-        float drift_phase = (millis() % 60000) / 60000.0f * 2.0f * M_PI;
-        int8_t dx = roundf(sinf(drift_phase) * 1.5f);
-        int8_t dy = roundf(cosf(drift_phase) * 1.5f);
-        
-        it.strftime(32 + dx, 6 + dy, id(weather_font), esphome::Color(255*bri, 255*bri, 255*bri), TextAlign::CENTER, "%d/%m %H:%M", now);
+        it.strftime(32, 6, id(weather_font), esphome::Color(255*bri, 255*bri, 255*bri), TextAlign::CENTER, "%d/%m %H:%M", now);
 
         if (id(current_temp).has_state()) {
           float temp = id(current_temp).state;
@@ -295,11 +291,11 @@ display:
 
           // Manual Brightness Application for Matrix
           tc.red *= bri; tc.green *= bri; tc.blue *= bri;
-          it.printf(31 + dx, 22 + dy, id(weather_font_l), tc, TextAlign::CENTER, "%.1f°C", temp);
+          it.printf(31, 22, id(weather_font_l), tc, TextAlign::CENTER, "%.1f°C", temp);
 
           // --- TREND ARROW (30m Anchor) ---
-          int8_t ax = 54 + dx; 
-          int8_t ay = 21 + dy; 
+          const int ax = 54;
+          const int ay = 21;
 
           if (temp > prev + 0.1) { 
               esphome::Color up_col = esphome::Color(255*bri, 0, 0);
@@ -317,13 +313,13 @@ display:
         }
 
         if (id(current_feels_like).has_state()) {
-          it.printf(32+dx, 38+dy, id(weather_font), esphome::Color(255*bri, 20*bri, 60*bri), TextAlign::CENTER, "FEELS %.1f°C", id(current_feels_like).state);
+          it.printf(32, 38, id(weather_font), esphome::Color(255*bri, 20*bri, 60*bri), TextAlign::CENTER, "FEELS %.1f°C", id(current_feels_like).state);
         }
         if (id(current_humidity).has_state()) {
-          it.printf(32+dx, 48+dy, id(weather_font), esphome::Color(0, 255*bri, 255*bri), TextAlign::CENTER, "HMDTY %.0f%%", id(current_humidity).state);
+          it.printf(32, 48, id(weather_font), esphome::Color(0, 255*bri, 255*bri), TextAlign::CENTER, "HMDTY %.0f%%", id(current_humidity).state);
         }
         if (id(current_dew_point).has_state()) {
-          it.printf(32+dx, 58+dy, id(weather_font), esphome::Color(0, 255*bri, 0), TextAlign::CENTER, "DEWPT %.1f°C", id(current_dew_point).state);
+          it.printf(32, 58, id(weather_font), esphome::Color(0, 255*bri, 0), TextAlign::CENTER, "DEWPT %.1f°C", id(current_dew_point).state);
         }
 
       } else {

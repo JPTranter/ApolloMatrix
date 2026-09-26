@@ -33,19 +33,23 @@ echo "== font fixtures vs YAML =="
 
 echo
 echo "== scenarios =="
-rm -rf "$OUT/traces" "$OUT/png"
+rm -rf "$OUT/traces" "$OUT/png" "$OUT/png_device"
 mkdir -p "$OUT/traces"
 BIN="$BUILD/render_scenarios"
 [ -f "$BIN.exe" ] && BIN="$BIN.exe"
 "$(win "$BIN")" "$(win "$OUT/traces")" || rc_scen=$?
 
 echo
-echo "== rasterize =="
-"$PY" "$(win "$HERE/rasterize.py")" "$(win "$OUT/traces")" "$(win "$OUT/png")" || exit 1
+echo "== rasterize (crisp: faithful pixel grid) =="
+"$PY" "$(win "$HERE/rasterize.py")" "$(win "$OUT/traces")" "$(win "$OUT/png")" --style crisp || exit 1
 
 echo
-echo "images: $OUT/png"
-echo "        $OUT/png/_contact_sheet.png"
+echo "== rasterize (device: LED look) =="
+"$PY" "$(win "$HERE/rasterize.py")" "$(win "$OUT/traces")" "$(win "$OUT/png_device")" --style device || exit 1
+
+echo
+echo "images: $OUT/png          (faithful pixel grid)"
+echo "        $OUT/png_device   (LED look)"
 
 if [ "$rc_sync" -ne 0 ]; then
   echo "RESULT: FAILED - logic drift between apollomatrix.yaml and the harness"

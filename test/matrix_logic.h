@@ -26,12 +26,6 @@
 #include <cstdio>
 #include <string>
 
-// MinGW/glibc hide M_PI under -std=c++17 (strict ANSI). ESPHome's build has it,
-// so provide the same value here to keep the port literal.
-#ifndef M_PI
-#define M_PI 3.14159265358979323846
-#endif
-
 namespace matrix {
 
 struct Rgb {
@@ -69,8 +63,6 @@ struct Inputs {
   bool feels_valid;    float feels;      // id(current_feels_like)
   bool humidity_valid; float humidity;   // id(current_humidity)
   bool dew_valid;      float dew;        // id(current_dew_point)
-
-  uint32_t millis;        // drives the burn-in drift phase
 };
 
 enum class LedState { Off, On, Unchanged };
@@ -132,12 +124,8 @@ Result render(Canvas &it, const Inputs &in) {
     res.led = LedState::Unchanged;  // the lambda only touches the LED when temp has state
     it.fill(Rgb{0, 0, 0});
 
-    const float drift_phase = (in.millis % 60000) / 60000.0f * 2.0f * M_PI;
-    const int dx = static_cast<int8_t>(roundf(sinf(drift_phase) * 1.5f));
-    const int dy = static_cast<int8_t>(roundf(cosf(drift_phase) * 1.5f));
-
     snprintf(buf, sizeof(buf), "%02d/%02d %02d:%02d", in.day, in.month, in.hour, in.minute);
-    it.text(32 + dx, 6 + dy, Font::Small, rgb(255 * bri, 255 * bri, 255 * bri), Align::Center, buf);
+    it.text(32, 6, Font::Small, rgb(255 * bri, 255 * bri, 255 * bri), Align::Center, buf);
 
     if (in.temp_valid) {
       const float temp = in.temp;
@@ -153,11 +141,11 @@ Result render(Canvas &it, const Inputs &in) {
 
       const Rgb dimmed = rgb(tc.r * bri, tc.g * bri, tc.b * bri);
       snprintf(buf, sizeof(buf), "%.1f\xC2\xB0""C", temp);
-      it.text(31 + dx, 22 + dy, Font::Large, dimmed, Align::Center, buf);
+      it.text(31, 22, Font::Large, dimmed, Align::Center, buf);
 
       // --- TREND ARROW (30m Anchor) ---
-      const int ax = 54 + dx;
-      const int ay = 21 + dy;
+      const int ax = 54;
+      const int ay = 21;
 
       if (temp > prev + 0.1) {
         const Rgb up_col = rgb(255 * bri, 0, 0);
@@ -176,15 +164,15 @@ Result render(Canvas &it, const Inputs &in) {
 
     if (in.feels_valid) {
       snprintf(buf, sizeof(buf), "FEELS %.1f\xC2\xB0""C", in.feels);
-      it.text(32 + dx, 38 + dy, Font::Small, rgb(255 * bri, 20 * bri, 60 * bri), Align::Center, buf);
+      it.text(32, 38, Font::Small, rgb(255 * bri, 20 * bri, 60 * bri), Align::Center, buf);
     }
     if (in.humidity_valid) {
       snprintf(buf, sizeof(buf), "HMDTY %.0f%%", in.humidity);
-      it.text(32 + dx, 48 + dy, Font::Small, rgb(0, 255 * bri, 255 * bri), Align::Center, buf);
+      it.text(32, 48, Font::Small, rgb(0, 255 * bri, 255 * bri), Align::Center, buf);
     }
     if (in.dew_valid) {
       snprintf(buf, sizeof(buf), "DEWPT %.1f\xC2\xB0""C", in.dew);
-      it.text(32 + dx, 58 + dy, Font::Small, rgb(0, 255 * bri, 0), Align::Center, buf);
+      it.text(32, 58, Font::Small, rgb(0, 255 * bri, 0), Align::Center, buf);
     }
 
   } else {

@@ -19,7 +19,7 @@ HUB75 pins: `R1=42 G1=41 B1=40 R2=38 G2=39 B2=37 A=45 B=36 C=48 D=35 E=21 CLK=2 
 
 ## What it displays
 
-- **Date/time** `%d/%m %H:%M`, drifting gently (±1.5 px sinusoidal) to avoid burn-in.
+- **Date/time** `%d/%m %H:%M` at a fixed position (the old ±1.5 px burn-in drift was removed — see `docs/lessons/` 21).
 - **Temperature** from `sensor.scoresby_temp`, interpolated white→blue→cyan→green→orange→red across −2 °C … 30 °C.
 - **Trend arrow** ▲/▼ comparing the current temperature against the 30-minute anchor (`temp_30m`), which is rotated by the `update_temp_trend` script every 10 min.
 - **FEELS / HMDTY / DEWPT** lines from the matching Scoresby sensors.
@@ -120,8 +120,17 @@ Four steps:
 4. **Run 20 scenarios** asserting the expected display/LED state, then rasterize
    each to PNG.
 
-Output: `test/output/png/<NN>_<scenario>.png` (8× zoom) and
-`test/output/png/_contact_sheet.png` (all scenarios in one grid).
+Two styles are rendered for every scenario:
+
+- **crisp** → `test/output/png/` — the faithful 64×64 pixel grid at 8× zoom, with a
+  `_contact_sheet.png`. Use this to judge layout and content.
+- **device** → `test/output/png_device/` — an LED-panel look: round LEDs with a glow
+  halo on a dark mask, faint unlit packages, per-LED binning spread, slight vignette,
+  plus a contact sheet. Presentation only — the default `--exposure 2.2` mimics a
+  dark-room photo and `--exposure 1.0` gives the true brightness. Use this to judge
+  how it will *appear*.
+
+Knobs: `rasterize.py [traces_dir] [out_dir] --style crisp|device --cell 16 --exposure 2.2`.
 
 Coverage: window boundaries (07:30 / 08:00 / 21:59 / 22:00), lounge occupied vs
 empty, presence sensor with no state, manual override inside/outside the window and

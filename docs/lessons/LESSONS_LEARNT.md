@@ -402,10 +402,17 @@ This is what caught the wrong AA conclusion in lesson 19, and it is the method t
 reach for whenever a render is meant to predict the panel: compare against a photo,
 not against the source.
 
-## 21. What the burn-in drift actually buys (verified 2026-09-26)
+## 21. What the burn-in drift actually buys — and why it was removed (verified 2026-09-26)
 
-The lambda shifts the whole image by `dx = roundf(sin(phase)*1.5)`,
-`dy = roundf(cos(phase)*1.5)` over a 60 s phase cycle, which reads as a gentle
+> **Removed 2026-09-26** at the user's request. The lambda now draws at fixed
+> coordinates (`dx = dy = 0`), where every line fits with margin (lesson 17: DEWPT
+> 2 px, temperature 23 px). The analysis below is kept because it quantifies what was
+> given up: with no drift every inked pixel is lit for 100 % of the display time, so
+> there is now no burn-in spreading at all and the remaining wear levers are
+> brightness (`bri = 0.2`) and the lounge-presence gate.
+
+The lambda used to shift the whole image by `dx = roundf(sin(phase)*1.5)`,
+`dy = roundf(cos(phase)*1.5)` over a 60 s phase cycle, which read as a gentle
 ±1.5 px anti-burn-in drift. Measured against the real content — for each reachable
 offset, the lit-pixel mask from the firmware's bitmaps, then each pixel's duty across
 the cycle:

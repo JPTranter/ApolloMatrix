@@ -194,6 +194,65 @@ def render_panel(trace: dict, fonts: dict[str, DeviceFont]) -> Image.Image:
     return img
 
 
+# --- device look -------------------------------------------------------------
+# PRESENTATION ONLY. Renders the 64x64 logical frame the way the physical LED
+# matrix appears in a photo: round LEDs on a dark mask, faint unlit packages, a
+# glow halo on lit ones. The crisp renderer above stays the faithful one - see
+# README "Rendering fidelity" and lesson 19.
+DEVICE_CELL = 16        # px per LED in the device-style output
+DEVICE_EXPOSURE = 2.2   # gain to mimic a dark-room photo (1.0 = the true brightness)
+PANEL_BG = (11, 11, 13)
+UNLIT_LEVEL = 14        # faint dots the unlit packages catch
+CORE_RADIUS = 0.30      # LED die radius, in cell units
+GLOW_SIGMA = 0.52
+GLOW_GAIN = 0.32
+VIGNETTE = 0.15
+LED_VARIATION = 0.06    # per-LED brightness spread (real panels bin their LEDs)
+LED_VARIATION_SEED = 20260926
+
+
+def device_look(panel: Image.Image, cell: int = DEVICE_CELL,
+                exposure: float = DEVICE_EXPOSURE) -> Image.Image:
+    import numpy as np
+
+    n = panel.width
+    size = n * cell
+    led_grid = np.asarray(panel.convert("RGB"), dtype=np.float32)
+
+    yy, xx = np.mgrid[0:size, 0:size].astype(np.float32)
+    fx = (xx + 0.5) / cell - 0.5          # LED-centre coordinates (centre = integer)
+    fy = (yy + 0.5) / cell - 0.5
+    cj = np.clip(np.floor(fx + 0.5).astype(np.int32), 0, n - 1)
+    ci = np.clip(np.floor(fy + 0.5).astype(np.int32), 0, n - 1)
+    r = np.hypot(fx - cj, fy - ci)        # distance from the LED centre, in cell units
+
+    led = led_grid[ci, cj]                # the LED colour behind every pixel
+    # slight per-LED spread, the way real panels bin their LEDs (deterministic)
+    rng = np.random.default_rng(LED_VARIATION_SEED)
+    gain = 1.0 + np.clip(rng.normal(0.0, LED_VARIATION, size=(n, n)),
+                         -3 * LED_VARIATION, 3 * LED_VARIATION)
+    led = led * gain[ci, cj][..., None]
+    lit = led.max(axis=2) > 0.5
+
+    out = np.empty((size, size, 3), np.float32)
+    out[:] = PANEL_BG
+
+    # unlit packages: faint round dots, visible on the real panel
+    dot = np.clip(1.0 - (r / 0.30) ** 2, 0.0, 1.0)
+    out += (~lit)[..., None] * dot[..., None] * UNLIT_LEVEL
+
+    # lit LEDs: a bright die with a soft halo
+    core = np.clip(1.0 - (r / CORE_RADIUS) ** 4, 0.0, 1.0)
+    halo = np.exp(-(r / GLOW_SIGMA) ** 2)
+    out += lit[..., None] * led * (core + GLOW_GAIN * halo)[..., None]
+
+    # gentle vignette, like a photo of the panel
+    rad = np.hypot(xx - size / 2.0, yy - size / 2.0) / (size / 2.0)
+    out *= (1.0 - VIGNETTE * np.clip(rad, 0.0, 1.0) ** 2)[..., None]
+
+    return Image.fromarray(np.clip(out * exposure, 0.0, 255.0).astype(np.uint8))
+
+
 def caption_font(size: int):
     try:
         return ImageFont.truetype(str(CAPTION_FONT_PATH), size)
@@ -234,18 +293,22 @@ def with_caption(panel: Image.Image, trace: dict, zoom: int) -> Image.Image:
     return out
 
 
-def build_contact_sheet(items: list[tuple[dict, Image.Image]]) -> Image.Image:
+def build_contact_sheet(items: list[tuple[dict, Image.Image]],
+                        tile_zoom: int = SHEET_ZOOM) -> Image.Image:
     cols = 4
     rows = (len(items) + cols - 1) // cols
-    tile_w = PANEL_W * SHEET_ZOOM + 2 + 16
-    tile_h = PANEL_H * SHEET_ZOOM + 2 + 44
+    if not items:
+        return Image.new("RGB", (16, 16), BG)
+    w0, h0 = items[0][1].width * tile_zoom, items[0][1].height * tile_zoom
+    tile_w = w0 + 2 + 16
+    tile_h = h0 + 2 + 44
     sheet = Image.new("RGB", (cols * tile_w, rows * tile_h), BG)
     d = ImageDraw.Draw(sheet)
     f = caption_font(10)
 
     for i, (trace, panel) in enumerate(items):
         cx, cy = (i % cols) * tile_w, (i // cols) * tile_h
-        big = panel.resize((PANEL_W * SHEET_ZOOM, PANEL_H * SHEET_ZOOM), Image.NEAREST)
+        big = panel.resize((panel.width * tile_zoom, panel.height * tile_zoom), Image.NEAREST)
         border = Image.new("RGB", (big.width + 2, big.height + 2), (60, 60, 70))
         border.paste(big, (1, 1))
         sheet.paste(border, (cx + 8, cy + 8))
@@ -257,8 +320,21 @@ def build_contact_sheet(items: list[tuple[dict, Image.Image]]) -> Image.Image:
 
 
 def main() -> int:
-    traces_dir = Path(sys.argv[1] if len(sys.argv) > 1 else "output/traces")
-    out_dir = Path(sys.argv[2] if len(sys.argv) > 2 else "output/png")
+    import argparse
+
+    ap = argparse.ArgumentParser(description="Rasterize apollomatrix draw-op traces to PNG")
+    ap.add_argument("traces_dir", nargs="?", default="output/traces")
+    ap.add_argument("out_dir", nargs="?", default=None)
+    ap.add_argument("--style", choices=("crisp", "device"), default="crisp",
+                    help="crisp = faithful pixel grid (default); device = LED look")
+    ap.add_argument("--cell", type=int, default=DEVICE_CELL,
+                    help="pixels per LED for --style device")
+    ap.add_argument("--exposure", type=float, default=DEVICE_EXPOSURE,
+                    help="gain for --style device (1.0 = the true brightness)")
+    args = ap.parse_args()
+
+    traces_dir = Path(args.traces_dir)
+    out_dir = Path(args.out_dir or ("output/png" if args.style == "crisp" else "output/png_device"))
     out_dir.mkdir(parents=True, exist_ok=True)
 
     global CAPTION_FONT_PATH
@@ -271,18 +347,24 @@ def main() -> int:
         return 1
 
     fonts = load_device_fonts(fonts_dir)
-    print("device fonts: " + ", ".join(
+    print(f"style: {args.style}   device fonts: " + ", ".join(
         f"{k}={v.id} (bpp {v.bpp}, height {v.height}, {len(v.table)} glyphs)"
         for k, v in sorted(fonts.items())))
+
+    device = args.style == "device"
+    sheet_cell = max(4, args.cell // 3)
 
     items = []
     for path in files:
         trace = json.loads(path.read_text(encoding="utf-8"))
         panel = render_panel(trace, fonts)
-        with_caption(panel, trace, ZOOM).save(out_dir / f"{path.stem}.png")
-        items.append((trace, panel))
+        shown = device_look(panel, cell=args.cell, exposure=args.exposure) if device else panel
+        with_caption(shown, trace, 1 if device else ZOOM).save(out_dir / f"{path.stem}.png")
+        items.append((trace, device_look(panel, cell=sheet_cell, exposure=args.exposure)
+                      if device else panel))
 
-    build_contact_sheet(items).save(out_dir / "_contact_sheet.png")
+    build_contact_sheet(items, tile_zoom=1 if device else SHEET_ZOOM).save(
+        out_dir / "_contact_sheet.png")
 
     failed = [t["name"] for t, _ in items if not t.get("pass")]
     print(f"rendered {len(items)} scenario image(s) -> {out_dir}")
