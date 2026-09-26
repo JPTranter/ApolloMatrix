@@ -546,3 +546,10 @@ Follow-up changes (same day), all user-requested:
   (lowercase letters/digits/dashes only), so `ApolloMatrix` is invalid there and goes in
   `friendly_name` — which is what Home Assistant shows. The hostname stays
   `apollomatrix`.
+- **Documentation split into three docs with distinct jobs.**
+  `README.md` = project reference (configuration table, hardware, renders, harness);
+  `docs/USER_GUIDE.md` = the deployment walkthrough for someone who has just bought the
+  hardware (gather entity IDs → edit the block → **first flash over USB, not OTA** →
+  add the device in HA → troubleshooting → optional tweaks);
+  `docs/lessons/LESSONS_LEARNT.md` = this technical record. Keep the User Guide in step
+  with the config surface: a new substitution belongs in its step-2 block too.

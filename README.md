@@ -11,6 +11,11 @@ Weather comes from **Home Assistant entities** (the default config points at a
 Bureau-of-Meteorology station in Scoresby, Melbourne) — see
 [Configuration](#configuration) to swap in your own source and location.
 
+> **Just got the hardware? Start with the [User Guide](docs/USER_GUIDE.md)** — it walks
+> through collecting your entity IDs, editing the config, the first USB flash, adding
+> the device to Home Assistant and troubleshooting. The rest of this README is the
+> project reference.
+
 ## Configuration
 
 Everything you need to change is in the **`substitutions:`** block at the top of
@@ -138,6 +143,9 @@ actually force the display on (dead code; see Known issues).
 - Fonts are fetched at build time from Google Fonts (`gfonts://Silkscreen`, `gfonts://Roboto`).
 
 ## Build / flash (ESPHome addon on the HA server)
+
+**First time with new hardware? Use the [User Guide](docs/USER_GUIDE.md)** — the first
+flash must be over USB, which this section does not cover.
 
 Firmware is built and pushed from the **ESPHome addon on the Home Assistant
 server**, not from this repo's machine.
