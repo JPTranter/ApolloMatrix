@@ -160,6 +160,14 @@ std::vector<Scenario> build_scenarios() {
   }
   {
     auto in = base();
+    in.temp = -5.4f; in.temp_prev = -5.4f;
+    add("temp_negative_box",
+        "Sub-zero temp: '-' is absent from the Roboto glyph set, so the device draws "
+        "Font::print()'s placeholder rectangle where the minus should be", in, true,
+        matrix::LedState::On);
+  }
+  {
+    auto in = base();
     in.temp = 12.0f; in.temp_prev = 11.0f;
     add("trend_up", "temp > anchor + 0.1 -> upward red arrow", in, true, matrix::LedState::On);
   }

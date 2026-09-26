@@ -28,8 +28,12 @@ echo "== logic sync check (test/matrix_logic.h vs apollomatrix.yaml) =="
 "$PY" "$(win "$HERE/check_sync.py")" "$(win "$HERE/..")" || rc_sync=$?
 
 echo
+echo "== font fixtures vs YAML =="
+"$PY" "$(win "$HERE/export_font_metrics.py")" --check || rc_sync=$?
+
+echo
 echo "== scenarios =="
-rm -rf "$OUT/traces"
+rm -rf "$OUT/traces" "$OUT/png"
 mkdir -p "$OUT/traces"
 BIN="$BUILD/render_scenarios"
 [ -f "$BIN.exe" ] && BIN="$BIN.exe"
