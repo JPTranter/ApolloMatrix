@@ -1,25 +1,44 @@
-# gitleaks configuration — https://github.com/gitleaks/gitleaks#configuration
+# GENERATED FILE - do not edit.
+# Written by: software-factory/tools/factory.py sync
+# Head:       software-factory/config/gitleaks.base.toml
+# Paths:      software-factory/config/repos.json, entry "ApolloMatrix"
 #
-# Verified before publishing: `gitleaks detect --source .` over the full history
-# reported "no leaks found" (30 commits), and `secrets.yaml` has never been
-# committed (it is git-ignored, and CI re-checks all history on every push).
+# Rendered images and the glyph fixture are dense binary/hex blobs whose runs look like credentials to the entropy heuristics. Nothing authored by hand is allowlisted, so a real secret in the config, docs or scripts is still caught.
+
+# gitleaks - shared policy. https://github.com/gitleaks/gitleaks#configuration
 #
-# The allowlist is for KNOWN-SAFE content, not real secrets: rendered images and
-# the glyph fixture are dense binary/hex blobs whose runs are indistinguishable
-# from credentials to the default entropy heuristics. Nothing authored by hand is
-# allowlisted, so a real secret in the config, docs or scripts is still caught.
+# This file is the head of the generated `.gitleaks.toml` in each project. Do not
+# edit a generated file: edit this file, or the paths in `config/repos.json`, then
+# run:
+#
+#   python tools/factory.py sync --write
+#
+# Policy, the same in every project:
+#   * Use the full default rule set.
+#   * Allowlist KNOWN-SAFE content only: build trees, vendored code, generated
+#     binary data and render output. Those hold long high-entropy runs that the
+#     generic heuristics cannot tell from a credential.
+#   * Never allowlist project source. A real secret in authored code must fail.
+#   * Allowlist paths, never regexes or stopwords over content.
+#
+# The allowlist table is generated below this text from `config/repos.json`: the
+# shared entries first, then the project's own. One table only, because a second
+# `[allowlist]` table overrides the first and silently drops the shared entries.
 
 [extend]
 useDefault = true
 
 [allowlist]
 paths = [
-    # Build tree and render output — git-ignored, machine-written.
-    '''test/build/''',
-    '''test/output/''',
-    # Tracked but binary: the README's rendered images and the glyph bitmaps.
+    '''\.pio/''',
+    '''/build/''',
+    '''/build-.*/''',
+    '''/output/''',
+    '''\.venv/''',
+    '''\.venv-.*/''',
+    '''node_modules/''',
+    '''third_party/''',
     '''docs/images/''',
     '''test/fonts/metrics\.json''',
-    # Local editor state, if anyone tracks it.
     '''\.vscode/''',
 ]
