@@ -80,3 +80,18 @@ jobs:
           # the gate unreproducible.
           pip install black==26.5.1
           black --check --line-length 100 test/
+
+  factory:
+    name: Factory gate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0            # full history, so the factory's secret stage sees it all
+      - name: Factory check
+        # The shared gate: secrets, gitleaks config drift, home paths, doc links, Python compile.
+        # The action comes from a private repository; it is readable by repositories owned by
+        # JPTranter because that repository grants that access in its Actions settings.
+        uses: JPTranter/software-factory/.github/actions/check@main
+        with:
+          repo: ApolloMatrix
